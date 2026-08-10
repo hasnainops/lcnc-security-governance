@@ -200,3 +200,11 @@ def update_application(
         )
 
     return application
+
+
+from .policy import evaluate_and_persist
+
+
+@app.post("/applications/{application_id}/policy-evaluate")
+def evaluate_application_policy(application_id: UUID):
+    return evaluate_and_persist(application_id)
