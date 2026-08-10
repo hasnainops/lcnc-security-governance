@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: LCNC Governance
+    orgId: 1
+    folder: LCNC Governance
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards

@@ -227,3 +227,15 @@ from .history import get_application_history
 @app.get("/applications/{application_id}/history")
 def application_history(application_id: UUID):
     return get_application_history(application_id)
+
+
+from fastapi.responses import Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+
+@app.get("/metrics")
+def prometheus_metrics():
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
