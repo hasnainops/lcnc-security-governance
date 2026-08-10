@@ -16,7 +16,7 @@ class ApplicationCreate(BaseModel):
     data_classification: str = "unknown"
 
     internet_exposed: bool = False
-    external_integration: bool = False
+    external_integration: bool | None = None
     integration_approved: bool | None = None
 
     credential_type: str | None = None

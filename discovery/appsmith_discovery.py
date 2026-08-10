@@ -78,7 +78,7 @@ def register_shadow_application(application):
         "lifecycle_status": "active",
         "data_classification": "unknown",
         "internet_exposed": bool(application.get("isPublic", False)),
-        "external_integration": False,
+        "external_integration": None,
     }
 
     response = httpx.post(
@@ -90,6 +90,14 @@ def register_shadow_application(application):
     if response.status_code not in (201, 409):
         response.raise_for_status()
 
+
+
+def mark_seen(application_id):
+    response = httpx.patch(
+        f"{GOVERNANCE_API_URL}/applications/{application_id}/seen",
+        timeout=10.0,
+    )
+    response.raise_for_status()
 
 def main():
     print("=== Appsmith Discovery ===")
@@ -124,6 +132,8 @@ def main():
 
                 if external_id in inventory:
                     known += 1
+
+                    mark_seen(inventory[external_id]["id"])
 
                     print(
                         f"[KNOWN]  {name} "

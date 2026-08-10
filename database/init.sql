@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS applications (
     data_classification VARCHAR(50) NOT NULL DEFAULT 'unknown',
 
     internet_exposed BOOLEAN NOT NULL DEFAULT FALSE,
-    external_integration BOOLEAN NOT NULL DEFAULT FALSE,
+    external_integration BOOLEAN,
     integration_approved BOOLEAN,
 
     credential_type VARCHAR(100),

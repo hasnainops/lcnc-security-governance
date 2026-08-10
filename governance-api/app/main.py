@@ -117,3 +117,27 @@ def get_application(application_id: UUID):
         )
 
     return application
+
+
+@app.patch("/applications/{application_id}/seen")
+def mark_application_seen(application_id: UUID):
+    with get_connection() as connection:
+        application = connection.execute(
+            """
+            UPDATE applications
+            SET
+                last_seen_at = NOW(),
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING *;
+            """,
+            (application_id,)
+        ).fetchone()
+
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+
+    return application
