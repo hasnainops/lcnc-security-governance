@@ -1,4 +1,24 @@
 services:
+  
+  risk-engine:
+    build:
+       context: ./risk-engine
+    container_name: lcnc-risk-engine
+    expose:
+      - "8001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
 
   discovery:
     build:
@@ -67,11 +87,14 @@ services:
       context: ./governance-api
     container_name: lcnc-governance-api
     environment:
+      RISK_ENGINE_URL: http://risk-engine:8001
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       OPA_URL: http://opa:8181
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
+      risk-engine:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       opa:

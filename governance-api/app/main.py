@@ -141,3 +141,11 @@ def mark_application_seen(application_id: UUID):
         )
 
     return application
+
+
+from .assessment import assess_and_persist
+
+
+@app.post("/applications/{application_id}/assess")
+def assess_application_risk(application_id: UUID):
+    return assess_and_persist(application_id)
