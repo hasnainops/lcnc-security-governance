@@ -78,8 +78,11 @@ services:
       - --server
       - --addr=0.0.0.0:8181
       - --log-level=info
+      - /policies
     ports:
       - "127.0.0.1:8181:8181"
+    volumes:
+      - ./policies:/policies:ro
     restart: unless-stopped
 
   governance-api:
