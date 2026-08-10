@@ -43,7 +43,7 @@ services:
       context: ./governance-portal
     container_name: lcnc-governance-portal
     ports:
-      - "127.0.0.1:3000:80"
+      - "127.0.0.1:3000:8080"
     depends_on:
       governance-api:
         condition: service_healthy
@@ -51,7 +51,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://localhost/ > /dev/null || exit 1"
+          "wget -qO- http://127.0.0.1:8080/  > /dev/null || exit 1"
         ]
       interval: 5s
       timeout: 5s
