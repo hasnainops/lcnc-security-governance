@@ -219,3 +219,11 @@ from .workflow import run_governance_workflow
 @app.post("/applications/{application_id}/governance-evaluate")
 def evaluate_application_governance(application_id: UUID):
     return run_governance_workflow(application_id)
+
+
+from .history import get_application_history
+
+
+@app.get("/applications/{application_id}/history")
+def application_history(application_id: UUID):
+    return get_application_history(application_id)

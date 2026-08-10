@@ -1,0 +1,204 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f4f6f8;
+  color: #17202a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+header {
+  background: #111827;
+  color: white;
+  padding: 22px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+header p {
+  margin: 6px 0 0;
+  color: #cbd5e1;
+}
+
+main {
+  max-width: 1300px;
+  margin: auto;
+  padding: 28px;
+}
+
+button {
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+header button {
+  background: white;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric,
+.panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.metric {
+  padding: 20px;
+}
+
+.metric span {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.metric small {
+  color: #64748b;
+}
+
+.panel {
+  padding: 22px;
+  margin-bottom: 24px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 13px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: #f8fafc;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #e5e7eb;
+}
+
+.badge.low,
+.badge.completed,
+.badge.auto_approve {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.medium,
+.badge.pending_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge.high {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.badge.critical,
+.badge.blocked,
+.badge.block {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.detail-header button {
+  background: #111827;
+  color: white;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.detail-item {
+  background: #f8fafc;
+  border-radius: 7px;
+  padding: 12px;
+}
+
+.detail-item strong {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 5px;
+}
+
+.history-entry {
+  border-left: 4px solid #cbd5e1;
+  padding: 10px 14px;
+  margin: 10px 0;
+  background: #f8fafc;
+}
+
+.history-entry p {
+  margin: 4px 0;
+}
+
+.message {
+  position: fixed;
+  right: 25px;
+  bottom: 25px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  color: white;
+  background: #111827;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .summary,
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

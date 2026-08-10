@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LCNC Security Governance</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>LCNC Security Governance</h1>
+      <p>Application inventory, risk, policy and governance decisions</p>
+    </div>
+    <button id="refreshButton">Refresh</button>
+  </header>
+
+  <main>
+    <section class="summary">
+      <div class="metric">
+        <span id="applicationCount">0</span>
+        <small>Applications</small>
+      </div>
+      <div class="metric">
+        <span id="criticalCount">0</span>
+        <small>Critical Risk</small>
+      </div>
+      <div class="metric">
+        <span id="blockedCount">0</span>
+        <small>Blocked</small>
+      </div>
+      <div class="metric">
+        <span id="unregisteredCount">0</span>
+        <small>Unregistered</small>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Application Inventory</h2>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Application</th>
+              <th>Platform</th>
+              <th>Registration</th>
+              <th>Owner</th>
+              <th>Risk</th>
+              <th>Governance</th>
+            </tr>
+          </thead>
+          <tbody id="applicationRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="detailPanel" class="panel hidden">
+      <div class="detail-header">
+        <div>
+          <h2 id="detailName">Application</h2>
+          <p id="detailPlatform"></p>
+        </div>
+
+        <button id="evaluateButton">
+          Run Governance Evaluation
+        </button>
+      </div>
+
+      <div id="applicationDetails" class="detail-grid"></div>
+
+      <h3>Risk History</h3>
+      <div id="riskHistory" class="history"></div>
+
+      <h3>Policy Decisions</h3>
+      <div id="policyHistory" class="history"></div>
+
+      <h3>Governance Decisions</h3>
+      <div id="governanceHistory" class="history"></div>
+    </section>
+
+    <div id="message" class="message hidden"></div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

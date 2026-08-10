@@ -1,5 +1,26 @@
 services:
   
+  governance-portal:
+    build:
+      context: ./governance-portal
+    container_name: lcnc-governance-portal
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      governance-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost/ > /dev/null || exit 1"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped  
+
   risk-engine:
     build:
        context: ./risk-engine
