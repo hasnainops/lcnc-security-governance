@@ -149,3 +149,54 @@ from .assessment import assess_and_persist
 @app.post("/applications/{application_id}/assess")
 def assess_application_risk(application_id: UUID):
     return assess_and_persist(application_id)
+
+
+from .models import ApplicationUpdate
+
+
+@app.patch("/applications/{application_id}")
+def update_application(
+    application_id: UUID,
+    update: ApplicationUpdate
+):
+    changes = update.model_dump(exclude_unset=True)
+
+    if not changes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No application fields supplied"
+        )
+
+    assignments = ", ".join(
+        f"{field} = %s"
+        for field in changes
+    )
+
+    values = list(changes.values())
+    values.append(application_id)
+
+    with get_connection() as connection:
+        application = connection.execute(
+            f"""
+            UPDATE applications
+            SET
+                {assignments},
+                risk_status = 'stale',
+                risk_score = NULL,
+                risk_level = NULL,
+                risk_model_version = NULL,
+                risk_assessed_at = NULL,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING *;
+            """,
+            values
+        ).fetchone()
+
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found"
+        )
+
+    return application
