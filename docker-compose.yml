@@ -1,4 +1,13 @@
 services:
+  
+  appsmith:
+    image: appsmith/appsmith-ce:v2.2
+    container_name: lcnc-appsmith
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - appsmith_data:/appsmith-stacks
+    restart: unless-stopped
 
   postgres:
     image: postgres:18.4-alpine
@@ -63,3 +72,4 @@ services:
 
 volumes:
   postgres_data:
+  appsmith_data:
