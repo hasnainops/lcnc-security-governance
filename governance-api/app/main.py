@@ -186,6 +186,9 @@ def update_application(
                 risk_level = NULL,
                 risk_model_version = NULL,
                 risk_assessed_at = NULL,
+                governance_status = 'stale',
+                governance_outcome = NULL,
+                governance_decided_at = NULL,
                 updated_at = NOW()
             WHERE id = %s
             RETURNING *;
@@ -208,3 +211,11 @@ from .policy import evaluate_and_persist
 @app.post("/applications/{application_id}/policy-evaluate")
 def evaluate_application_policy(application_id: UUID):
     return evaluate_and_persist(application_id)
+
+
+from .workflow import run_governance_workflow
+
+
+@app.post("/applications/{application_id}/governance-evaluate")
+def evaluate_application_governance(application_id: UUID):
+    return run_governance_workflow(application_id)
