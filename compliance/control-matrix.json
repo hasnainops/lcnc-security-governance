@@ -1,0 +1,282 @@
+{
+  "metadata": {
+    "project": "LCNC Security Governance",
+    "purpose": "Technical control and evidence mapping for the LCNC governance MVP",
+    "disclaimer": "This mapping demonstrates technical support for governance and assurance activities. It does not establish organizational compliance or certification."
+  },
+  "controls": [
+    {
+      "id": "LCNC-GOV-01",
+      "control_objective": "Maintain visibility of low-code/no-code applications",
+      "platform_capabilities": [
+        "Authenticated Appsmith discovery",
+        "Application inventory",
+        "Shadow application detection",
+        "First discovered and last seen timestamps"
+      ],
+      "evidence": [
+        "applications table",
+        "Discovery logs",
+        "Governance Portal inventory"
+      ],
+      "responsible_role": "Platform Administrator",
+      "validation": "Run discovery and compare Appsmith applications against governance inventory",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "IDENTIFY"
+        ],
+        "iso_iec_27001": [
+          "Information security risk management",
+          "Asset visibility and management",
+          "Governance and accountability"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-09 Asset Management Failures"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-02",
+      "control_objective": "Classify and assess application security risk",
+      "platform_capabilities": [
+        "Deterministic risk scoring",
+        "Explainable weighted risk factors",
+        "Risk model versioning",
+        "Historical risk assessments"
+      ],
+      "evidence": [
+        "risk_assessments table",
+        "risk_score",
+        "risk_level",
+        "risk_model_version",
+        "Grafana risk metrics"
+      ],
+      "responsible_role": "Security/GRC Reviewer",
+      "validation": "Run governance evaluation and inspect persisted factors and score",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "IDENTIFY"
+        ],
+        "iso_iec_27001": [
+          "Information security risk assessment",
+          "Information security risk treatment"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-04 Sensitive Data Leakage and Handling Failures",
+          "CD-SEC-07 Security Misconfiguration"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-03",
+      "control_objective": "Apply deterministic security policy before governance approval",
+      "platform_capabilities": [
+        "OPA policy-as-code",
+        "Confidential-data integration guardrail",
+        "ALLOW and DENY decisions",
+        "Versioned policy evidence"
+      ],
+      "evidence": [
+        "policies/application.rego",
+        "policy_decisions table",
+        "OPA decision reasons",
+        "OPA unit tests"
+      ],
+      "responsible_role": "Security Engineering",
+      "validation": "Execute OPA policy tests and governance workflow",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "PROTECT"
+        ],
+        "iso_iec_27001": [
+          "Security policy implementation",
+          "Secure configuration",
+          "Protection of sensitive information"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-04 Sensitive Data Leakage and Handling Failures",
+          "CD-SEC-07 Security Misconfiguration"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-04",
+      "control_objective": "Assign accountable governance outcomes and human review",
+      "platform_capabilities": [
+        "AUTO_APPROVE",
+        "BUSINESS_REVIEW",
+        "SECURITY_REVIEW",
+        "BLOCK",
+        "Required role assignment"
+      ],
+      "evidence": [
+        "governance_decisions table",
+        "required_role",
+        "Governance Portal decision history"
+      ],
+      "responsible_role": "Business Application Owner / Security-GRC Reviewer",
+      "validation": "Run governance workflow and inspect required_role and outcome",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "RESPOND"
+        ],
+        "iso_iec_27001": [
+          "Roles and responsibilities",
+          "Risk ownership",
+          "Management decision and treatment"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-01 Blind Trust",
+          "CD-SEC-09 Asset Management Failures"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-05",
+      "control_objective": "Require reassessment following material application changes",
+      "platform_capabilities": [
+        "Risk status invalidation",
+        "Governance status invalidation",
+        "Reassessment after remediation",
+        "Historical BLOCK to AUTO_APPROVE lifecycle"
+      ],
+      "evidence": [
+        "risk_status stale",
+        "governance_status stale",
+        "risk_assessments history",
+        "governance_decisions history"
+      ],
+      "responsible_role": "Application Owner / Security-GRC Reviewer",
+      "validation": "Modify governed application metadata and verify stale state before reevaluation",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "RESPOND",
+          "RECOVER"
+        ],
+        "iso_iec_27001": [
+          "Change management",
+          "Risk treatment",
+          "Continual improvement"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-07 Security Misconfiguration",
+          "CD-SEC-09 Asset Management Failures"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-06",
+      "control_objective": "Maintain auditable security and governance evidence",
+      "platform_capabilities": [
+        "Persistent risk history",
+        "Persistent policy history",
+        "Persistent governance decision history",
+        "Application discovery timestamps"
+      ],
+      "evidence": [
+        "PostgreSQL audit tables",
+        "Governance history API",
+        "Governance Portal history"
+      ],
+      "responsible_role": "Security/GRC Reviewer",
+      "validation": "Retrieve application history API and compare chronological decision records",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "DETECT",
+          "RESPOND"
+        ],
+        "iso_iec_27001": [
+          "Logging",
+          "Monitoring",
+          "Evidence retention",
+          "Management review support"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-10 Security Logging and Monitoring Failures"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-07",
+      "control_objective": "Monitor governance control-plane health and activity",
+      "platform_capabilities": [
+        "Prometheus metrics",
+        "Grafana dashboards",
+        "OPA metrics",
+        "Workflow latency monitoring",
+        "Service availability monitoring"
+      ],
+      "evidence": [
+        "Prometheus time series",
+        "Grafana operational dashboard",
+        "Service health endpoints"
+      ],
+      "responsible_role": "Platform Operations",
+      "validation": "Verify Prometheus targets and Grafana dashboard telemetry",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "DETECT",
+          "RESPOND"
+        ],
+        "iso_iec_27001": [
+          "Monitoring activities",
+          "Event visibility",
+          "Operational resilience"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-10 Security Logging and Monitoring Failures"
+        ]
+      },
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-08",
+      "control_objective": "Prevent insecure control-plane changes from entering the main branch",
+      "platform_capabilities": [
+        "GitHub Actions security validation",
+        "Risk-engine tests",
+        "OPA policy tests",
+        "Docker Compose validation",
+        "Trivy HIGH and CRITICAL blocking gate",
+        "Non-root custom containers"
+      ],
+      "evidence": [
+        ".github/workflows/security-validation.yml",
+        "GitHub Actions run history",
+        "Trivy scan results",
+        "Docker USER directives"
+      ],
+      "responsible_role": "DevSecOps / Security Engineering",
+      "validation": "Push a change and verify Security Validation workflow succeeds or blocks",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "PROTECT"
+        ],
+        "iso_iec_27001": [
+          "Secure development lifecycle",
+          "Security testing",
+          "Secure configuration",
+          "Change control"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-06 Vulnerable and Untrusted Components",
+          "CD-SEC-07 Security Misconfiguration"
+        ]
+      },
+      "implementation_status": "implemented"
+    }
+  ]
+}
