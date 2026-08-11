@@ -30,6 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install \
             -r risk-engine/requirements.txt \
+            -r governance-api/requirements.txt \
             pytest
 
       - name: Validate Python syntax
