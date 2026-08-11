@@ -81,6 +81,71 @@ function renderDetail(label, value) {
   `;
 }
 
+async function loadComplianceEvidence(applicationId) {
+  const response = await fetch(
+    `/api/applications/${applicationId}/compliance-evidence`
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to retrieve compliance evidence");
+  }
+
+  const data = await response.json();
+  const container = document.getElementById("complianceEvidence");
+
+  container.innerHTML = "";
+
+  for (const control of data.controls) {
+    const element = document.createElement("div");
+    element.className = "history-entry";
+
+    const nist = control.framework_mapping.nist_csf_2_0.join(", ");
+    const iso = control.framework_mapping.iso_iec_27001.join(", ");
+    const owasp =
+      control.framework_mapping.owasp_citizen_development.join(", ");
+
+    element.innerHTML = `
+      <p>
+        <strong>
+          ${escapeHtml(control.id)}
+          — ${escapeHtml(control.control_objective)}
+        </strong>
+      </p>
+
+      <p>
+        Evidence:
+        ${badge(control.evidence_status)}
+      </p>
+
+      <p>
+        ${escapeHtml(control.evidence_summary)}
+      </p>
+
+      <p>
+        Responsible role:
+        ${escapeHtml(control.responsible_role)}
+      </p>
+
+      <p>
+        NIST CSF 2.0:
+        ${escapeHtml(nist)}
+      </p>
+
+      <p>
+        ISO/IEC 27001 alignment:
+        ${escapeHtml(iso)}
+      </p>
+
+      <p>
+        OWASP Citizen Development:
+        ${escapeHtml(owasp || "Not specifically mapped")}
+      </p>
+    `;
+
+    container.appendChild(element);
+  }
+}
+
 async function loadHistory(applicationId) {
   selectedApplicationId = applicationId;
 
@@ -167,6 +232,8 @@ async function loadHistory(applicationId) {
 
     governanceHistory.appendChild(element);
   }
+
+  await loadComplianceEvidence(applicationId);
 
   detailPanel.classList.remove("hidden");
 }

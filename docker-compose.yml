@@ -152,6 +152,9 @@ services:
       RISK_ENGINE_URL: http://risk-engine:8001
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       OPA_URL: http://opa:8181
+
+    volumes:
+      - ./compliance:/compliance:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

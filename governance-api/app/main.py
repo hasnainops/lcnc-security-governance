@@ -239,3 +239,19 @@ def prometheus_metrics():
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST,
     )
+
+
+from .compliance import (
+    get_application_compliance_evidence,
+    get_controls,
+)
+
+
+@app.get("/compliance/controls")
+def compliance_controls():
+    return get_controls()
+
+
+@app.get("/applications/{application_id}/compliance-evidence")
+def application_compliance_evidence(application_id: UUID):
+    return get_application_compliance_evidence(application_id)
