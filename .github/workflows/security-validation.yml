@@ -41,7 +41,7 @@ jobs:
 
       - name: Test deterministic risk engine
         run: |
-          pytest -q tests/test_risk_engine.py
+          pytest -q tests/test_risk_engine.py tests/test_dependency_failures.py
 
       - name: Setup OPA
         uses: open-policy-agent/setup-opa@v2.4.0

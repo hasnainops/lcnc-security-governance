@@ -50,12 +50,21 @@ def assess_and_persist(application_id: UUID):
         )
         response.raise_for_status()
 
+    except (httpx.ConnectError, httpx.TimeoutException) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Risk Engine unavailable. Governance evaluation failed closed.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Risk Engine returned an upstream HTTP error.",
+        ) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Risk engine unavailable: {exc}",
+            status_code=502,
+            detail="Risk Engine request failed.",
         ) from exc
-
     assessment = response.json()
     assessment_id = uuid4()
 
