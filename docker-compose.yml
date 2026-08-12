@@ -73,13 +73,13 @@ services:
       APPSMITH_USER: ${APPSMITH_USER}
       APPSMITH_PASSWORD: ${APPSMITH_PASSWORD}
       GOVERNANCE_API_URL: http://governance-api:8000
+      DISCOVERY_INTERVAL_SECONDS: "60"
     depends_on:
       appsmith:
         condition: service_healthy
       governance-api:
         condition: service_healthy
-    profiles:
-      - discovery
+    restart: unless-stopped
   appsmith:
     image: appsmith/appsmith-ce:v2.2
     container_name: lcnc-appsmith
