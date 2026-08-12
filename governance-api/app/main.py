@@ -148,12 +148,12 @@ def mark_application_seen(application_id: UUID):
     return application
 
 
-from .assessment import assess_and_persist
+from .assessment import assess_and_persist as assess_risk_and_persist
 
 
 @app.post("/applications/{application_id}/assess")
 def assess_application_risk(application_id: UUID):
-    return assess_and_persist(application_id)
+    return assess_risk_and_persist(application_id)
 
 
 from .models import ApplicationUpdate
@@ -227,12 +227,12 @@ def update_application(
     return application
 
 
-from .policy import evaluate_and_persist
+from .policy import evaluate_and_persist as evaluate_policy_and_persist
 
 
 @app.post("/applications/{application_id}/policy-evaluate")
 def evaluate_application_policy(application_id: UUID):
-    return evaluate_and_persist(application_id)
+    return evaluate_policy_and_persist(application_id)
 
 
 from .workflow import run_governance_workflow
@@ -305,7 +305,7 @@ def scan_application_security(application_id: UUID):
 
 from .integration import (
     TransferEvaluationRequest,
-    evaluate_and_persist,
+    evaluate_and_persist as evaluate_transfer_and_persist,
 )
 
 
@@ -316,7 +316,7 @@ def evaluate_application_transfer(
     application_id: UUID,
     payload: TransferEvaluationRequest,
 ):
-    return evaluate_and_persist(
+    return evaluate_transfer_and_persist(
         application_id,
         payload,
     )
@@ -358,7 +358,7 @@ def get_dynamic_compliance(
 
 
 from .compliance_assessment import (
-    assess_and_persist,
+    assess_and_persist as assess_compliance_and_persist,
 )
 
 
@@ -368,7 +368,7 @@ from .compliance_assessment import (
 def assess_application_compliance(
     application_id: UUID,
 ):
-    return assess_and_persist(
+    return assess_compliance_and_persist(
         application_id
     )
 

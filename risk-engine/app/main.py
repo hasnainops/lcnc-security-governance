@@ -89,7 +89,18 @@ def calculate_risk(application: ApplicationRiskInput) -> RiskAssessment:
             "Application is externally accessible.",
         )
 
-    if application.external_integration is None:
+    external_integration = application.external_integration
+    integration_approved = application.integration_approved
+
+    # Count-based telemetry is authoritative when available.
+    # Legacy booleans remain as backward-compatible fallback.
+    if application.external_integration_count is not None:
+        external_integration = application.external_integration_count > 0
+
+    if application.unapproved_integration_count is not None:
+        integration_approved = application.unapproved_integration_count == 0
+
+    if external_integration is None:
         add_factor(
             factors,
             "INTEGRATION_STATUS_UNKNOWN",
@@ -97,7 +108,7 @@ def calculate_risk(application: ApplicationRiskInput) -> RiskAssessment:
             "External integration status has not been assessed.",
         )
 
-    elif application.external_integration:
+    elif external_integration:
         add_factor(
             factors,
             "EXTERNAL_INTEGRATION",
@@ -105,7 +116,7 @@ def calculate_risk(application: ApplicationRiskInput) -> RiskAssessment:
             "Application connects to an external system.",
         )
 
-        if application.integration_approved is False:
+        if integration_approved is False:
             add_factor(
                 factors,
                 "UNAPPROVED_INTEGRATION",
@@ -113,7 +124,7 @@ def calculate_risk(application: ApplicationRiskInput) -> RiskAssessment:
                 "External integration has not been approved.",
             )
 
-        elif application.integration_approved is None:
+        elif integration_approved is None:
             add_factor(
                 factors,
                 "INTEGRATION_APPROVAL_UNKNOWN",
@@ -150,7 +161,7 @@ def calculate_risk(application: ApplicationRiskInput) -> RiskAssessment:
         score=score,
         level=level,
         factors=factors,
-        model_version="deterministic-v1",
+        model_version="deterministic-v2",
     )
 
 

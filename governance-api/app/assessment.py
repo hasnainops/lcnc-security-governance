@@ -39,6 +39,12 @@ def assess_and_persist(application_id: UUID):
         "internet_exposed": application["internet_exposed"],
         "external_integration": application["external_integration"],
         "integration_approved": application["integration_approved"],
+        "external_integration_count": application[
+            "external_integration_count"
+        ],
+        "unapproved_integration_count": application[
+            "unapproved_integration_count"
+        ],
         "credential_type": application["credential_type"],
     }
 

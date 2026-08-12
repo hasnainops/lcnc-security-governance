@@ -13,7 +13,7 @@ OPA_URL = os.getenv(
     "http://opa:8181",
 )
 
-POLICY_VERSION = "application-v1"
+POLICY_VERSION = "application-v2"
 
 
 def evaluate_and_persist(application_id: UUID):
@@ -40,6 +40,18 @@ def evaluate_and_persist(application_id: UUID):
         "internet_exposed": application["internet_exposed"],
         "external_integration": application["external_integration"],
         "integration_approved": application["integration_approved"],
+        "external_integration_count": application[
+            "external_integration_count"
+        ],
+        "unapproved_integration_count": application[
+            "unapproved_integration_count"
+        ],
+
+
+
+
+
+
         "credential_type": application["credential_type"],
         "risk_score": application["risk_score"],
         "risk_level": application["risk_level"],

@@ -9,6 +9,8 @@ class ApplicationRiskInput(BaseModel):
     internet_exposed: bool = False
     external_integration: bool | None = None
     integration_approved: bool | None = None
+    external_integration_count: int | None = None
+    unapproved_integration_count: int | None = None
     credential_type: str | None = None
 
 
