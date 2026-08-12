@@ -157,6 +157,22 @@ def get_application_history(application_id: UUID):
             (application_id,),
         ).fetchall()
 
+        compliance_history = connection.execute(
+            """
+            SELECT
+                id,
+                assessment_version,
+                overall_status,
+                summary,
+                controls,
+                assessed_at
+            FROM dynamic_compliance_assessments
+            WHERE application_id = %s
+            ORDER BY assessed_at DESC;
+            """,
+            (application_id,),
+        ).fetchall()
+
         policy_history = connection.execute(
             """
             SELECT
@@ -198,6 +214,7 @@ def get_application_history(application_id: UUID):
         "security_findings": security_finding_history,
         "integration_transfer_events": transfer_history,
         "access_decisions": access_history,
+        "dynamic_compliance_assessments": compliance_history,
         "policy_decisions": policy_history,
         "governance_decisions": governance_history,
     }

@@ -339,3 +339,35 @@ def authorize_application_action(
         application_id,
         payload,
     )
+
+
+from .dynamic_compliance import (
+    evaluate_dynamic_compliance,
+)
+
+
+@app.get(
+    "/applications/{application_id}/compliance/dynamic"
+)
+def get_dynamic_compliance(
+    application_id: UUID,
+):
+    return evaluate_dynamic_compliance(
+        application_id
+    )
+
+
+from .compliance_assessment import (
+    assess_and_persist,
+)
+
+
+@app.post(
+    "/applications/{application_id}/compliance/dynamic/assess"
+)
+def assess_application_compliance(
+    application_id: UUID,
+):
+    return assess_and_persist(
+        application_id
+    )
