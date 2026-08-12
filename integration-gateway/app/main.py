@@ -1,8 +1,16 @@
 import os
+import time
+from collections import defaultdict, deque
+from threading import Lock
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    generate_latest,
+)
 
 from .policy import evaluate_transfer
 
@@ -11,6 +19,58 @@ DLP_ENGINE_URL = os.getenv(
     "DLP_ENGINE_URL",
     "http://dlp-engine:8004",
 )
+
+
+
+RATE_LIMIT_PER_MINUTE = int(
+    os.getenv(
+        "GATEWAY_RATE_LIMIT_PER_MINUTE",
+        "60",
+    )
+)
+
+TRANSFER_REQUESTS = Counter(
+    "lcnc_gateway_transfer_requests_total",
+    "Total transfer evaluation requests.",
+)
+
+TRANSFER_DECISIONS = Counter(
+    "lcnc_gateway_transfer_decisions_total",
+    "Transfer decisions produced by the gateway.",
+    ["decision"],
+)
+
+DLP_FAILURES = Counter(
+    "lcnc_gateway_dlp_failures_total",
+    "DLP inspection failures.",
+    ["reason"],
+)
+
+RATE_LIMITED = Counter(
+    "lcnc_gateway_rate_limited_total",
+    "Requests blocked by the gateway rate limit.",
+)
+
+_rate_windows = defaultdict(deque)
+_rate_lock = Lock()
+
+
+def rate_limit_exceeded(application_id: str):
+    now = time.monotonic()
+    cutoff = now - 60.0
+
+    with _rate_lock:
+        window = _rate_windows[application_id]
+
+        while window and window[0] <= cutoff:
+            window.popleft()
+
+        if len(window) >= RATE_LIMIT_PER_MINUTE:
+            return True
+
+        window.append(now)
+
+    return False
 
 
 app = FastAPI(
@@ -55,8 +115,35 @@ def health():
     }
 
 
+
+@app.get("/metrics")
+def metrics():
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
+
+
 @app.post("/evaluate-transfer")
 def evaluate(payload: TransferRequest):
+    TRANSFER_REQUESTS.inc()
+
+    if rate_limit_exceeded(
+        payload.application_id
+    ):
+        RATE_LIMITED.inc()
+
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "decision": "block",
+                "reason": "rate_limit_exceeded",
+                "message": (
+                    "Transfer evaluation rate "
+                    "limit exceeded."
+                ),
+            },
+        )
     try:
         response = httpx.post(
             f"{DLP_ENGINE_URL}/inspect",
@@ -73,6 +160,10 @@ def evaluate(payload: TransferRequest):
         httpx.ConnectError,
         httpx.TimeoutException,
     ) as exc:
+        DLP_FAILURES.labels(
+            reason="unavailable"
+        ).inc()
+
         raise HTTPException(
             status_code=503,
             detail={
@@ -86,6 +177,10 @@ def evaluate(payload: TransferRequest):
         ) from exc
 
     except httpx.HTTPError as exc:
+        DLP_FAILURES.labels(
+            reason="inspection_failed"
+        ).inc()
+
         raise HTTPException(
             status_code=502,
             detail={
@@ -104,6 +199,10 @@ def evaluate(payload: TransferRequest):
         ),
         dlp_result=dlp_result,
     )
+
+    TRANSFER_DECISIONS.labels(
+        decision=policy["decision"]
+    ).inc()
 
     return {
         "gateway_version": "gateway-v1",

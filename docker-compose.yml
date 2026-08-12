@@ -211,6 +211,7 @@ services:
     container_name: lcnc-integration-gateway
     environment:
       DLP_ENGINE_URL: http://dlp-engine:8004
+      GATEWAY_RATE_LIMIT_PER_MINUTE: ${GATEWAY_RATE_LIMIT_PER_MINUTE:-60}
     expose:
       - "8005"
     depends_on:
