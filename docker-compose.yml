@@ -129,6 +129,7 @@ services:
       OPA_URL: http://opa:8181
       ML_ANALYTICS_URL: http://ml-analytics:8002
       SECURITY_SCANNER_URL: http://security-scanner:8003
+      INTEGRATION_GATEWAY_URL: http://integration-gateway:8005
     volumes:
       - ./compliance:/compliance:ro
     ports:
@@ -143,6 +144,8 @@ services:
       ml-analytics:
         condition: service_healthy
       security-scanner:
+        condition: service_healthy
+      integration-gateway:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -180,6 +183,45 @@ services:
         - python
         - -c
         - import urllib.request; urllib.request.urlopen("http://localhost:8003/health")
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+  dlp-engine:
+    build:
+      context: ./dlp-engine
+    container_name: lcnc-dlp-engine
+    expose:
+      - "8004"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8004/health")
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+  integration-gateway:
+    build:
+      context: ./integration-gateway
+    container_name: lcnc-integration-gateway
+    environment:
+      DLP_ENGINE_URL: http://dlp-engine:8004
+    expose:
+      - "8005"
+    depends_on:
+      dlp-engine:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8005/health")
       interval: 5s
       timeout: 5s
       retries: 10

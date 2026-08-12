@@ -110,6 +110,32 @@ def get_application_history(application_id: UUID):
             (application_id,),
         ).fetchall()
 
+        transfer_history = connection.execute(
+            """
+            SELECT
+                id,
+                destination_scheme,
+                destination_host,
+                destination_trust,
+                declared_classification,
+                effective_sensitivity,
+                decision,
+                allowed,
+                reasons,
+                dlp_sensitive_data_detected,
+                dlp_finding_count,
+                dlp_highest_sensitivity,
+                dlp_detected_types,
+                gateway_version,
+                dlp_engine_version,
+                evaluated_at
+            FROM integration_transfer_events
+            WHERE application_id = %s
+            ORDER BY evaluated_at DESC;
+            """,
+            (application_id,),
+        ).fetchall()
+
         policy_history = connection.execute(
             """
             SELECT
@@ -149,6 +175,7 @@ def get_application_history(application_id: UUID):
         "classification_assessments": classification_history,
         "security_scans": security_scan_history,
         "security_findings": security_finding_history,
+        "integration_transfer_events": transfer_history,
         "policy_decisions": policy_history,
         "governance_decisions": governance_history,
     }

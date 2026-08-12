@@ -301,3 +301,22 @@ from .security_scan import scan_and_persist
 @app.post("/applications/{application_id}/security-scan")
 def scan_application_security(application_id: UUID):
     return scan_and_persist(application_id)
+
+
+from .integration import (
+    TransferEvaluationRequest,
+    evaluate_and_persist,
+)
+
+
+@app.post(
+    "/applications/{application_id}/evaluate-transfer"
+)
+def evaluate_application_transfer(
+    application_id: UUID,
+    payload: TransferEvaluationRequest,
+):
+    return evaluate_and_persist(
+        application_id,
+        payload,
+    )
