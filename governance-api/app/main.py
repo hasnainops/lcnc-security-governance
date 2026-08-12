@@ -320,3 +320,22 @@ def evaluate_application_transfer(
         application_id,
         payload,
     )
+
+
+from .access import (
+    AccessRequest,
+    authorize_and_persist,
+)
+
+
+@app.post(
+    "/applications/{application_id}/authorize"
+)
+def authorize_application_action(
+    application_id: UUID,
+    payload: AccessRequest,
+):
+    return authorize_and_persist(
+        application_id,
+        payload,
+    )
