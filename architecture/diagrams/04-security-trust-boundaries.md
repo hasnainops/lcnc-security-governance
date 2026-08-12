@@ -1,67 +1,100 @@
-# Security Trust Boundaries
+# Security Trust Boundaries — MVP V2
 
 ```mermaid
 flowchart LR
-    subgraph TB1["Trust Boundary 1 — Citizen Development Platform"]
-        APP["Appsmith Applications"]
+
+    subgraph TB1["1 — Citizen Development"]
+        DEV["Citizen Developer"]
+        APP["Appsmith"]
+        DEV --> APP
     end
 
-    subgraph TB2["Trust Boundary 2 — Discovery"]
-        DISC["Authenticated Discovery Adapter"]
+    subgraph TB2["2 — Continuous Discovery"]
+        DISC["Discovery Adapter<br/>60-second cycle"]
     end
 
-    subgraph TB3["Trust Boundary 3 — Governance Control Plane"]
+    subgraph TB3["3 — AI / ML Analytics"]
+        ML["ML Analytics"]
+        ANOM["Isolation Forest"]
+        CLASS["TF-IDF + Logistic Regression"]
+        ML --> ANOM
+        ML --> CLASS
+    end
+
+    subgraph TB4["4 — Governance Control Plane"]
         API["Governance API"]
         RISK["Risk Engine"]
-        OPA["OPA Policy Engine"]
-        DB["PostgreSQL Evidence Store"]
+        SCAN["Security Scanner"]
+        COMP["Dynamic Compliance"]
+        GUIDE["Citizen Guidance / Training"]
     end
 
-    subgraph TB4["Trust Boundary 4 — Governance Experience"]
+    subgraph TB5["5 — Mandatory Policy"]
+        OPA["OPA"]
+        GOV["Governance Policy"]
+        ACCESS["Access Policy"]
+        OPA --> GOV
+        OPA --> ACCESS
+    end
+
+    subgraph TB6["6 — Sensitive Data / Egress"]
+        GW["Integration Gateway"]
+        DLP["DLP Engine"]
+        GW --> DLP
+    end
+
+    subgraph TB7["7 — Evidence"]
+        DB["PostgreSQL"]
+    end
+
+    subgraph TB8["8 — Governance Experience"]
         PORTAL["Governance Portal"]
+        NGINX["Nginx /api Proxy"]
+        PORTAL --> NGINX
     end
 
-    subgraph TB5["Trust Boundary 5 — Observability"]
+    subgraph TB9["9 — Observability"]
         PROM["Prometheus"]
-        GRAFANA["Grafana"]
+        GRAF["Grafana"]
+        PROM --> GRAF
     end
 
-    subgraph TB6["Trust Boundary 6 — Software Supply Chain"]
-        GIT["GitHub Repository"]
-        CI["Security Validation CI"]
+    subgraph TB10["10 — Software Supply Chain"]
+        GIT["GitHub"]
+        CI["GitHub Actions"]
         TRIVY["Trivy"]
+        DEP["Dependabot"]
+        GIT --> CI
+        CI --> TRIVY
+        DEP --> GIT
     end
 
-    APP -->|Application metadata| DISC
-    DISC -->|Normalized inventory data| API
+    APP -->|"LCNC metadata"| DISC
 
-    API -->|Application facts| RISK
-    RISK -->|Score + explainable factors| API
+    DISC -->|"inventory"| API
+    DISC -->|"analysis"| ML
+    ML -->|"advisory AI evidence"| API
 
-    API -->|Application facts| OPA
-    OPA -->|ALLOW / DENY| API
+    API --> RISK
+    RISK -->|"score + factors"| API
 
-    API -->|Persist evidence| DB
-    PORTAL -->|Governance operations| API
+    API --> SCAN
+    SCAN -->|"findings"| API
 
-    API -->|Metrics| PROM
-    PROM --> GRAFANA
+    API --> OPA
+    OPA -->|"ALLOW / DENY"| API
 
-    GIT --> CI
-    CI --> TRIVY
-    CI -->|Validated changes| GIT
-```
+    API --> GW
+    DLP -->|"sensitivity"| GW
+    GW -->|"ALLOW / BLOCK"| API
 
-## Fail-Closed Behavior
+    API --> COMP
+    COMP --> GUIDE
 
-### Risk Engine failure
+    API --> DB
+    DB --> API
 
-Risk Engine unavailable → 503 Service Unavailable → no policy decision → no governance authorization.
+    NGINX --> API
 
-### OPA failure
-
-OPA unavailable → 503 Service Unavailable → no governance authorization.
-
-## Security Principle
-
-Mandatory governance dependencies fail closed. The system does not manufacture an approval when a required decision component is unavailable.
+    API --> PROM
+    GW --> PROM

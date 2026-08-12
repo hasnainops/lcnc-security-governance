@@ -1,14 +1,67 @@
-# LCNC Security Governance System Architecture
+# LCNC Security Governance — MVP V2 System Architecture
 
-## Objective
+## Purpose
 
-Provide an external governance and security control plane for enterprise low-code/no-code environments without rebuilding the LCNC platform itself.
+The platform provides an external AI-assisted security and governance control plane for enterprise low-code/no-code environments.
 
-Appsmith is the reference LCNC implementation. The governance architecture remains platform-agnostic through adapter-based discovery.
+Appsmith is the reference LCNC platform. The control plane discovers citizen-developed applications, analyzes risk, applies security controls, enforces policy, records evidence, and provides governance and developer guidance.
 
-## Architecture Layers
+## Core Design Principles
 
-### 1. Citizen Development Layer
+- Unknown telemetry is not treated as safe.
+- AI assists detection and classification but does not independently authorize applications.
+- OPA makes mandatory policy and access-control decisions.
+- DLP inspects sensitive data before external transfers.
+- Historical evidence is retained after reassessment.
+- Material application changes make previous security state stale.
+- Automation supports human accountability.
+- Internal services remain internal unless host access is required.
+
+## High-Level Architecture
+
+Citizen Developer
+    |
+    v
+Appsmith LCNC Platform
+    |
+    v
+Continuous Discovery
+    |
+    +----> ML Analytics
+    |       - Isolation Forest anomaly detection
+    |       - TF-IDF + Logistic Regression classification
+    |
+    v
+Governance API
+    |
+    +----> Risk Engine
+    |
+    +----> Security Scanner
+    |
+    +----> OPA
+    |       - Governance policy
+    |       - Fine-grained access policy
+    |
+    +----> Integration Gateway
+    |          |
+    |          v
+    |       DLP Engine
+    |
+    +----> Dynamic Compliance
+    |
+    +----> Citizen Guidance / Training
+    |
+    v
+PostgreSQL Evidence Store
+    |
+    +----> Governance Portal
+    |
+    +----> Prometheus / Grafana
+
+GitHub Actions validates tests, OPA policies, dependencies, secrets,
+container configuration, and vulnerability findings.
+
+## 1. Citizen Development Layer
 
 Reference platform:
 
@@ -16,255 +69,405 @@ Reference platform:
 
 Responsibilities:
 
-- citizen-developed applications
-- application metadata
-- LCNC application lifecycle
+- hosts citizen-developed applications
+- exposes application metadata
+- provides the source inventory for discovery
 
 Appsmith does not make governance decisions.
 
-### 2. Discovery Layer
+## 2. Continuous Discovery Layer
 
-The Appsmith discovery adapter:
+Component:
 
-- authenticates to the LCNC platform
-- enumerates applications
-- compares applications against the governance inventory
-- detects previously unknown applications
-- updates last-seen evidence
+- `discovery`
 
-Unknown applications enter governance as unregistered rather than trusted.
+Capabilities:
 
-### 3. Governance Control Plane
+- authenticates to Appsmith
+- enumerates applications every 60 seconds
+- compares discovered applications with the governance inventory
+- identifies previously unknown applications
+- refreshes last-seen evidence
+- triggers ML and scanning when required metadata exists
 
-The Governance API orchestrates:
+Missing telemetry remains pending rather than being treated as safe.
+
+Examples:
+
+- `ML-PENDING`
+- `CLASSIFICATION-PENDING`
+- `SCAN-PENDING`
+
+## 3. AI / ML Analytics Layer
+
+Component:
+
+- `ml-analytics`
+
+### Shadow IT Anomaly Detection
+
+Model:
+
+- Isolation Forest
+- `isolation-forest-v1`
+
+Example features:
+
+- owner known
+- business purpose known
+- internet exposure
+- external integration count
+- unapproved integration count
+- API-key usage
+- connector count
+- external domain count
+- recent change activity
+
+Outputs:
+
+- anomaly decision
+- anomaly score
+- context signals
+- immutable assessment evidence
+
+### AI-Assisted Classification
+
+Model:
+
+- TF-IDF
+- Logistic Regression
+- `classification-v1`
+
+Classes:
+
+- public
+- internal
+- confidential
+- restricted
+
+Inputs include:
+
+- application name
+- business purpose
+- data fields
+- connector metadata
+
+Outputs include:
+
+- suggested classification
+- confidence
+- review-required state
+
+AI classification is advisory. The stored governance classification remains authoritative.
+
+## 4. Governance Control Plane
+
+Component:
+
+- `governance-api`
+
+Responsibilities:
 
 - application inventory
 - metadata enrichment
+- ML orchestration
+- security-scan orchestration
 - risk assessment
-- policy evaluation
-- governance workflow
-- compliance evidence
+- governance evaluation
+- access authorization
+- outbound-transfer evaluation
+- dynamic compliance
 - audit history
+- citizen-developer guidance
+- training completion tracking
 
-It is the primary coordination layer.
+## 5. Risk Engine
 
-### 4. Risk Assessment Layer
+Component:
 
-The Risk Engine provides:
+- `risk-engine`
 
-- deterministic scoring
-- explainable weighted factors
+Provides:
+
+- deterministic risk scoring
+- explainable factors
 - risk levels
-- model versioning
+- model/version evidence
 
-Risk scores are advisory governance inputs.
+Risk scores are advisory inputs and cannot override mandatory policy.
 
-They do not independently authorize applications.
+## 6. Citizen Application Security Scanner
 
-### 5. Policy Enforcement Layer
+Component:
 
-OPA provides deterministic hard-policy enforcement.
+- `security-scanner`
 
-Example:
+Checks include:
 
-Confidential or restricted information using an unapproved external integration results in DENY.
+- unregistered application
+- missing owner
+- unknown classification
+- unapproved external integration
+- API-key usage
+- insecure HTTP integration
+- possible embedded secret
+- sensitive data with external connectivity
 
-OPA evaluates underlying facts independently of the numerical risk score.
+Outputs include:
 
-### 6. Governance Workflow Layer
+- findings
+- severity
+- pass/fail state
+- historical scan evidence
 
-The workflow converts risk and policy evidence into:
+## 7. Policy-as-Code and Access Control
 
-- AUTO_APPROVE
-- BUSINESS_REVIEW
-- SECURITY_REVIEW
-- BLOCK
+Component:
 
-Human accountability is preserved through required governance roles.
+- OPA
 
-### 7. Evidence Layer
+Policy domains:
 
-PostgreSQL persists:
+- `lcnc.governance`
+- `lcnc.access`
 
-- application inventory
-- discovery timestamps
+OPA evaluates underlying facts rather than relying only on numerical risk.
+
+Access policy considers:
+
+- user role
+- requested action
+- application registration
+- data sensitivity
+
+OPA decisions are persisted for audit.
+
+## 8. DLP and Outbound Transfer Enforcement
+
+Components:
+
+- `dlp-engine`
+- `integration-gateway`
+
+DLP detects indicators including:
+
+- email
+- phone
+- payment card
+- SSN
+- confidential field names
+- restricted field names
+
+Raw sensitive values are not persisted as evidence.
+
+The Integration Gateway combines:
+
+- authoritative classification
+- DLP-detected sensitivity
+- destination trust
+- transport security
+
+Examples of blocked transfers:
+
+- unknown classification to an external destination
+- unapproved external destination
+- external HTTP destination
+- restricted data leaving the approved boundary
+
+## 9. Dynamic Compliance
+
+Seven live controls are evaluated:
+
+- CTRL-01 Owner assigned
+- CTRL-02 Classification established
+- CTRL-03 External integrations approved
+- CTRL-04 Security scanning acceptable
+- CTRL-05 Sensitive egress protected by DLP
+- CTRL-06 Access decisions enforced through OPA
+- CTRL-07 Governance decision current
+
+Statuses:
+
+- pass
+- fail
+- not assessed
+
+Compliance snapshots can be stored as historical evidence.
+
+Framework references are alignment themes, not certification claims.
+
+## 10. Citizen Developer Enablement
+
+Capabilities:
+
+- evidence-based security score
+- Gold / Silver / Bronze / Needs Attention badge
+- targeted secure-development guidance
+- recommended training
+- training completion tracking
+- achievement status
+
+Training recommendations are triggered by actual failed or not-assessed controls.
+
+## 11. Evidence Layer
+
+Component:
+
+- PostgreSQL
+
+Stored evidence includes:
+
+- applications
+- discovery state
 - risk assessments
+- anomaly assessments
+- classification assessments
+- security scans and findings
 - policy decisions
 - governance decisions
+- OPA access decisions
+- integration transfer events
+- compliance assessments
+- training completions
 
-Historical decisions are retained after remediation and reassessment.
+## 12. Governance Portal
 
-### 8. Governance Experience
+Component:
 
-The Governance Portal provides:
+- `governance-portal`
+
+Provides visibility into:
 
 - application inventory
-- risk state
-- governance status
-- historical decisions
-- control evidence
-- NIST / ISO / OWASP alignment
+- ownership and registration
+- risk
+- AI anomaly evidence
+- AI classification
+- security scanning
+- DLP / transfer decisions
+- OPA access decisions
+- dynamic compliance
+- security score and badge
+- targeted citizen-developer guidance
+- historical governance evidence
 
-### 9. Observability Layer
+The browser accesses the Governance API through the Nginx `/api/` reverse proxy.
 
-Prometheus and Grafana provide:
+## 13. Observability
 
-- control-plane health
+Components:
+
+- Prometheus
+- Grafana
+
+Provides visibility into:
+
+- service health
+- governance activity
 - risk activity
 - policy outcomes
-- governance outcomes
-- workflow latency
-- service availability
+- workflow behavior
+- operational metrics
 
-### 10. DevSecOps Layer
+## 14. DevSecOps
 
 GitHub Actions provides automated validation for:
 
-- Python syntax
-- deterministic risk tests
-- dependency failure tests
-- OPA validation
+- Python tests
+- ML tests
+- scanner tests
+- DLP/gateway tests
 - OPA policy tests
-- Docker Compose configuration
-- Trivy HIGH/CRITICAL security findings
+- Docker Compose validation
+- Trivy security scanning
+- HIGH/CRITICAL vulnerability gates
+- secret scanning
+- dependency updates with Dependabot
 
-Custom services run as non-root.
+Runtime credentials are supplied through environment variables.
 
-## Primary Governance Flow
+`.env` is excluded from Git.
 
-Citizen Developer
-    |
-    v
-LCNC Platform
-    |
-    v
-Discovery Adapter
-    |
-    v
-Application Inventory
-    |
-    v
-Risk Engine
-    |
-    +---- Explainable Risk Evidence
-    |
-    v
-OPA Policy Engine
-    |
-    +---- Hard ALLOW / DENY
-    |
-    v
-Governance Workflow
-    |
-    +---- AUTO_APPROVE
-    +---- BUSINESS_REVIEW
-    +---- SECURITY_REVIEW
-    +---- BLOCK
-    |
-    v
-PostgreSQL Audit Evidence
-    |
-    +---- Governance Portal
-    +---- Compliance Evidence
-    +---- Prometheus / Grafana
+## Decision Authority Model
 
-## Demo Scenario
-
-### Initial Discovery
-
-Customer Data Export appears in Appsmith but is outside the governance inventory.
-
-Discovery identifies it as shadow IT and registers it as:
-
-- unregistered
-- owner unknown
-- classification unknown
-- integration status unknown
-
-### Risk Enrichment
-
-The application is identified as:
-
-- confidential
-- externally integrated
-- integration not approved
-- API-key credential
-- no accountable owner
-
-Risk becomes CRITICAL.
-
-### Hard Policy
-
-OPA independently evaluates the facts.
-
-Confidential data plus an unapproved external integration produces:
-
-DENY
-
-### Governance Result
-
-The orchestration layer returns:
-
-BLOCK
-
-Required role:
-
-Security/GRC Reviewer
-
-The complete evidence chain is persisted.
-
-### Remediation
-
-The organization:
-
-- registers the application
-- assigns an owner
-- records its business purpose
-- removes the unapproved external integration
-- removes the API-key dependency
-- reassesses the application
-
-The result becomes:
-
-- LOW risk
-- OPA ALLOW
-- AUTO_APPROVE
-
-The previous BLOCK decision remains available as audit evidence.
+| Component | Responsibility |
+|---|---|
+| ML Analytics | Detect and classify |
+| Risk Engine | Quantify and explain risk |
+| Security Scanner | Detect deterministic findings |
+| DLP | Inspect sensitive data |
+| Integration Gateway | Enforce outbound-transfer controls |
+| OPA | Mandatory governance and access decisions |
+| Governance Workflow | Approval and escalation |
+| Human Stakeholders | Final organizational accountability |
 
 ## Failure Behavior
 
-If the Risk Engine is unavailable:
+### ML unavailable
 
-- governance evaluation returns 503
-- no policy decision is created
-- no governance approval is created
+AI analysis remains unavailable or pending. A safe result is not fabricated.
 
-If OPA is unavailable:
+### Scanner unavailable
 
-- risk assessment may complete
-- governance evaluation returns 503
-- no policy authorization is fabricated
-- no governance approval is created
+The application is not treated as having passed security scanning.
 
-The system therefore fails closed at mandatory governance decision points.
+### Risk Engine unavailable
+
+Governance evaluation fails instead of inventing a risk result.
+
+### OPA unavailable
+
+Mandatory authorization fails closed.
+
+### DLP unavailable
+
+Outbound-transfer evaluation fails closed and blocks the transfer.
+
+### Missing telemetry
+
+Missing values remain unknown or pending rather than being converted to safe defaults.
+
+## Local MVP Deployment
+
+Host-accessible services:
+
+- Appsmith — `localhost:8080`
+- Governance API — `localhost:8000`
+- Governance Portal — `localhost:3000`
+- Grafana — `localhost:3001`
+- Prometheus — `localhost:9090`
+- OPA — `localhost:8181`
+
+Internal services:
+
+- Risk Engine — `8001`
+- ML Analytics — `8002`
+- Security Scanner — `8003`
+- DLP Engine — `8004`
+- Integration Gateway — `8005`
+- PostgreSQL — `5432`
+
+Docker Compose provides the local service network.
 
 ## Production Boundary
 
-The MVP is intentionally localhost-focused.
+The current implementation is a localhost-focused interview/capstone MVP.
 
-A production implementation would additionally require:
+Production hardening would additionally require:
 
 - enterprise SSO
-- RBAC
-- service identity
-- TLS
+- stronger API authentication
+- service identities
+- TLS between services
 - centralized secrets management
 - network segmentation
-- immutable or tamper-evident audit storage
-- HA and disaster recovery
-- scheduled/event-driven discovery
+- database hardening and encryption
+- tamper-evident audit storage
+- high availability
+- backup and disaster recovery
 - SIEM integration
-- enterprise LCNC connectors
+- additional LCNC connectors
+- distributed rate limiting
+- signed artifacts and software provenance
 
-These are production requirements rather than capabilities claimed by the current MVP.
+These are future production requirements and are not claimed as current MVP capabilities.
