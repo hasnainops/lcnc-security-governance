@@ -270,9 +270,141 @@ def trigger_classification(application):
         )
 
 
+def trigger_security_scan(application):
+    name = application["name"]
+
+    if application.get(
+        "security_scan_status"
+    ) == "scanned":
+        return
+
+    required_fields = [
+        "external_integration_count",
+        "unapproved_integration_count",
+        "connector_metadata",
+    ]
+
+    missing = [
+        field
+        for field in required_fields
+        if application.get(field) is None
+        or (
+            isinstance(
+                application.get(field),
+                str,
+            )
+            and not application.get(field).strip()
+        )
+    ]
+
+    if missing:
+        print(
+            f"[SCAN-PENDING] {name}: "
+            "security metadata incomplete: "
+            + ", ".join(missing),
+            flush=True,
+        )
+        return
+
+    try:
+        response = httpx.post(
+            (
+                f"{GOVERNANCE_API_URL}"
+                f"/applications/{application['id']}"
+                "/security-scan"
+            ),
+            timeout=15.0,
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        print(
+            f"[SECURITY-SCAN] {name}: "
+            f"passed={result['passed']} "
+            f"findings={result['finding_count']} "
+            f"highest={result['highest_severity']}",
+            flush=True,
+        )
+
+    except httpx.HTTPError as exc:
+        print(
+            f"[SCAN-ERROR] {name}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+def trigger_security_scan(application):
+    name = application["name"]
+
+    if application.get(
+        "security_scan_status"
+    ) == "scanned":
+        return
+
+    required_fields = [
+        "external_integration_count",
+        "unapproved_integration_count",
+        "connector_metadata",
+    ]
+
+    missing = [
+        field
+        for field in required_fields
+        if application.get(field) is None
+        or (
+            isinstance(
+                application.get(field),
+                str,
+            )
+            and not application.get(field).strip()
+        )
+    ]
+
+    if missing:
+        print(
+            f"[SCAN-PENDING] {name}: "
+            "security metadata incomplete: "
+            + ", ".join(missing),
+            flush=True,
+        )
+        return
+
+    try:
+        response = httpx.post(
+            (
+                f"{GOVERNANCE_API_URL}"
+                f"/applications/{application['id']}"
+                "/security-scan"
+            ),
+            timeout=15.0,
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        print(
+            f"[SECURITY-SCAN] {name}: "
+            f"passed={result['passed']} "
+            f"findings={result['finding_count']} "
+            f"highest={result['highest_severity']}",
+            flush=True,
+        )
+
+    except httpx.HTTPError as exc:
+        print(
+            f"[SCAN-ERROR] {name}: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
 def run_ai_pipeline(application):
     trigger_anomaly_analysis(application)
     trigger_classification(application)
+    trigger_security_scan(application)
+    trigger_security_scan(application)
 
 
 def run_discovery_cycle():

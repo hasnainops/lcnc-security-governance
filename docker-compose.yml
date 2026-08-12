@@ -128,6 +128,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       OPA_URL: http://opa:8181
       ML_ANALYTICS_URL: http://ml-analytics:8002
+      SECURITY_SCANNER_URL: http://security-scanner:8003
     volumes:
       - ./compliance:/compliance:ro
     ports:
@@ -140,6 +141,8 @@ services:
       opa:
         condition: service_started
       ml-analytics:
+        condition: service_healthy
+      security-scanner:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -160,6 +163,23 @@ services:
         - python
         - -c
         - import urllib.request; urllib.request.urlopen("http://localhost:8002/health")
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+  security-scanner:
+    build:
+      context: ./security-scanner
+    container_name: lcnc-security-scanner
+    expose:
+      - "8003"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8003/health")
       interval: 5s
       timeout: 5s
       retries: 10

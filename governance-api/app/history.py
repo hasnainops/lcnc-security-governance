@@ -76,6 +76,40 @@ def get_application_history(application_id: UUID):
             (application_id,),
         ).fetchall()
 
+        security_scan_history = connection.execute(
+            """
+            SELECT
+                id,
+                scanner_version,
+                finding_count,
+                highest_severity,
+                passed,
+                scanned_at
+            FROM security_scans
+            WHERE application_id = %s
+            ORDER BY scanned_at DESC;
+            """,
+            (application_id,),
+        ).fetchall()
+
+        security_finding_history = connection.execute(
+            """
+            SELECT
+                id,
+                scan_id,
+                rule_id,
+                title,
+                severity,
+                evidence,
+                remediation,
+                created_at
+            FROM security_findings
+            WHERE application_id = %s
+            ORDER BY created_at DESC;
+            """,
+            (application_id,),
+        ).fetchall()
+
         policy_history = connection.execute(
             """
             SELECT
@@ -113,6 +147,8 @@ def get_application_history(application_id: UUID):
         "risk_assessments": risk_history,
         "ml_assessments": ml_history,
         "classification_assessments": classification_history,
+        "security_scans": security_scan_history,
+        "security_findings": security_finding_history,
         "policy_decisions": policy_history,
         "governance_decisions": governance_history,
     }

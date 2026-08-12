@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS applications (
     ml_classification_model_version VARCHAR(100),
     ml_classified_at TIMESTAMPTZ,
 
+    security_scan_status VARCHAR(30) NOT NULL DEFAULT 'not_scanned',
+    security_finding_count INTEGER,
+    security_highest_severity VARCHAR(30),
+    security_scan_passed BOOLEAN,
+    security_scanner_version VARCHAR(100),
+    security_scanned_at TIMESTAMPTZ,
+
     first_discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -142,3 +149,41 @@ CREATE INDEX IF NOT EXISTS idx_classification_assessments_application_id
 
 CREATE INDEX IF NOT EXISTS idx_classification_assessments_classified_at
     ON classification_assessments(classified_at);
+
+
+CREATE TABLE IF NOT EXISTS security_scans (
+    id UUID PRIMARY KEY,
+    application_id UUID NOT NULL
+        REFERENCES applications(id)
+        ON DELETE CASCADE,
+    scanner_version VARCHAR(100) NOT NULL,
+    finding_count INTEGER NOT NULL,
+    highest_severity VARCHAR(30),
+    passed BOOLEAN NOT NULL,
+    scanned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS security_findings (
+    id UUID PRIMARY KEY,
+    scan_id UUID NOT NULL
+        REFERENCES security_scans(id)
+        ON DELETE CASCADE,
+    application_id UUID NOT NULL
+        REFERENCES applications(id)
+        ON DELETE CASCADE,
+    rule_id VARCHAR(30) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    severity VARCHAR(30) NOT NULL,
+    evidence TEXT NOT NULL,
+    remediation TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_security_scans_application_id
+    ON security_scans(application_id);
+
+CREATE INDEX IF NOT EXISTS idx_security_findings_application_id
+    ON security_findings(application_id);
+
+CREATE INDEX IF NOT EXISTS idx_security_findings_scan_id
+    ON security_findings(scan_id);

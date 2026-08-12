@@ -202,6 +202,12 @@ def update_application(
                 ml_classification_review_required = NULL,
                 ml_classification_model_version = NULL,
                 ml_classified_at = NULL,
+                security_scan_status = 'stale',
+                security_finding_count = NULL,
+                security_highest_severity = NULL,
+                security_scan_passed = NULL,
+                security_scanner_version = NULL,
+                security_scanned_at = NULL,
                 governance_status = 'stale',
                 governance_outcome = NULL,
                 governance_decided_at = NULL,
@@ -287,3 +293,11 @@ from .classification import classify_and_persist
 @app.post("/applications/{application_id}/ml-classify")
 def classify_application_ml(application_id: UUID):
     return classify_and_persist(application_id)
+
+
+from .security_scan import scan_and_persist
+
+
+@app.post("/applications/{application_id}/security-scan")
+def scan_application_security(application_id: UUID):
+    return scan_and_persist(application_id)
