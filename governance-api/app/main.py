@@ -43,12 +43,15 @@ def create_application(application: ApplicationCreate):
             internet_exposed,
             external_integration,
             integration_approved,
-            credential_type
+            credential_type,
+            data_fields,
+            connector_metadata
         )
         VALUES (
             %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s,
+            %s, %s
         )
         RETURNING *;
     """
@@ -69,6 +72,8 @@ def create_application(application: ApplicationCreate):
         application.external_integration,
         application.integration_approved,
         application.credential_type,
+        application.data_fields,
+        application.connector_metadata,
     )
 
     try:
@@ -191,6 +196,12 @@ def update_application(
                 ml_decision_score = NULL,
                 ml_model_version = NULL,
                 ml_assessed_at = NULL,
+                ml_classification_status = 'stale',
+                ml_suggested_classification = NULL,
+                ml_classification_confidence = NULL,
+                ml_classification_review_required = NULL,
+                ml_classification_model_version = NULL,
+                ml_classified_at = NULL,
                 governance_status = 'stale',
                 governance_outcome = NULL,
                 governance_decided_at = NULL,
@@ -268,3 +279,11 @@ from .ml import analyze_and_persist as analyze_ml_and_persist
 @app.post("/applications/{application_id}/ml-analyze")
 def analyze_application_ml(application_id: UUID):
     return analyze_ml_and_persist(application_id)
+
+
+from .classification import classify_and_persist
+
+
+@app.post("/applications/{application_id}/ml-classify")
+def classify_application_ml(application_id: UUID):
+    return classify_and_persist(application_id)

@@ -20,6 +20,8 @@ class ApplicationCreate(BaseModel):
     integration_approved: bool | None = None
 
     credential_type: str | None = None
+    data_fields: str | None = None
+    connector_metadata: str | None = None
 
 
 class ApplicationUpdate(BaseModel):
@@ -34,3 +36,5 @@ class ApplicationUpdate(BaseModel):
     external_integration: bool | None = None
     integration_approved: bool | None = None
     credential_type: str | None = None
+    data_fields: str | None = None
+    connector_metadata: str | None = None

@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS applications (
     ml_model_version VARCHAR(100),
     ml_assessed_at TIMESTAMPTZ,
 
+    data_fields TEXT,
+    connector_metadata TEXT,
+
+    ml_classification_status VARCHAR(30) NOT NULL DEFAULT 'not_assessed',
+    ml_suggested_classification VARCHAR(50),
+    ml_classification_confidence DOUBLE PRECISION,
+    ml_classification_review_required BOOLEAN,
+    ml_classification_model_version VARCHAR(100),
+    ml_classified_at TIMESTAMPTZ,
+
     first_discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -109,3 +119,26 @@ CREATE INDEX IF NOT EXISTS idx_governance_decisions_application_id
 
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_created_at
     ON governance_decisions(created_at);
+
+
+CREATE TABLE IF NOT EXISTS classification_assessments (
+    id UUID PRIMARY KEY,
+    application_id UUID NOT NULL
+        REFERENCES applications(id)
+        ON DELETE CASCADE,
+    suggested_classification VARCHAR(50) NOT NULL,
+    confidence DOUBLE PRECISION NOT NULL,
+    review_required BOOLEAN NOT NULL,
+    review_threshold DOUBLE PRECISION NOT NULL,
+    model_version VARCHAR(100) NOT NULL,
+    class_probabilities JSONB NOT NULL,
+    inputs JSONB NOT NULL,
+    authority VARCHAR(30) NOT NULL DEFAULT 'advisory',
+    classified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_classification_assessments_application_id
+    ON classification_assessments(application_id);
+
+CREATE INDEX IF NOT EXISTS idx_classification_assessments_classified_at
+    ON classification_assessments(classified_at);

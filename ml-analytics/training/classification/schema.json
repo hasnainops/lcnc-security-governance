@@ -1,0 +1,18 @@
+{
+  "model_purpose": "ML-assisted LCNC application data sensitivity classification",
+  "version": "classification-schema-v1",
+  "input_fields": [
+    "application_name",
+    "business_purpose",
+    "data_fields",
+    "connector_metadata"
+  ],
+  "classes": [
+    "public",
+    "internal",
+    "confidential",
+    "restricted"
+  ],
+  "authority": "advisory",
+  "human_review_required_for_high_sensitivity": true
+}

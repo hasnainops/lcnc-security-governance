@@ -56,6 +56,26 @@ def get_application_history(application_id: UUID):
             (application_id,),
         ).fetchall()
 
+        classification_history = connection.execute(
+            """
+            SELECT
+                id,
+                suggested_classification,
+                confidence,
+                review_required,
+                review_threshold,
+                model_version,
+                class_probabilities,
+                inputs,
+                authority,
+                classified_at
+            FROM classification_assessments
+            WHERE application_id = %s
+            ORDER BY classified_at DESC;
+            """,
+            (application_id,),
+        ).fetchall()
+
         policy_history = connection.execute(
             """
             SELECT
@@ -92,6 +112,7 @@ def get_application_history(application_id: UUID):
         "application": application,
         "risk_assessments": risk_history,
         "ml_assessments": ml_history,
+        "classification_assessments": classification_history,
         "policy_decisions": policy_history,
         "governance_decisions": governance_history,
     }
