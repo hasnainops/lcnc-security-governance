@@ -38,6 +38,24 @@ def get_application_history(application_id: UUID):
             (application_id,),
         ).fetchall()
 
+        ml_history = connection.execute(
+            """
+            SELECT
+                id,
+                analysis_type,
+                anomalous,
+                decision_score,
+                model_version,
+                features,
+                context_signals,
+                assessed_at
+            FROM ml_assessments
+            WHERE application_id = %s
+            ORDER BY assessed_at DESC;
+            """,
+            (application_id,),
+        ).fetchall()
+
         policy_history = connection.execute(
             """
             SELECT
@@ -73,6 +91,7 @@ def get_application_history(application_id: UUID):
     return {
         "application": application,
         "risk_assessments": risk_history,
+        "ml_assessments": ml_history,
         "policy_decisions": policy_history,
         "governance_decisions": governance_history,
     }

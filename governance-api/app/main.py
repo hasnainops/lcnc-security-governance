@@ -186,6 +186,11 @@ def update_application(
                 risk_level = NULL,
                 risk_model_version = NULL,
                 risk_assessed_at = NULL,
+                ml_anomaly_status = 'stale',
+                ml_anomalous = NULL,
+                ml_decision_score = NULL,
+                ml_model_version = NULL,
+                ml_assessed_at = NULL,
                 governance_status = 'stale',
                 governance_outcome = NULL,
                 governance_decided_at = NULL,
@@ -255,3 +260,11 @@ def compliance_controls():
 @app.get("/applications/{application_id}/compliance-evidence")
 def application_compliance_evidence(application_id: UUID):
     return get_application_compliance_evidence(application_id)
+
+
+from .ml import analyze_and_persist as analyze_ml_and_persist
+
+
+@app.post("/applications/{application_id}/ml-analyze")
+def analyze_application_ml(application_id: UUID):
+    return analyze_ml_and_persist(application_id)

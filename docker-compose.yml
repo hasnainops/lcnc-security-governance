@@ -1,5 +1,4 @@
 services:
-
   grafana:
     image: grafana/grafana:13.1.3
     container_name: lcnc-grafana
@@ -19,7 +18,6 @@ services:
       prometheus:
         condition: service_started
     restart: unless-stopped
-
   prometheus:
     image: prom/prometheus:v3.13.2
     container_name: lcnc-prometheus
@@ -37,7 +35,6 @@ services:
       opa:
         condition: service_started
     restart: unless-stopped
-  
   governance-portal:
     build:
       context: ./governance-portal
@@ -48,37 +45,25 @@ services:
       governance-api:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget -qO- http://127.0.0.1:8080/  > /dev/null || exit 1"
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-    restart: unless-stopped  
-
-  risk-engine:
-    build:
-       context: ./risk-engine
-    container_name: lcnc-risk-engine
-    expose:
-      - "8001"
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"
-        ]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/  > /dev/null || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 5s
     restart: unless-stopped
-
+  risk-engine:
+    build:
+      context: ./risk-engine
+    container_name: lcnc-risk-engine
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
   discovery:
     build:
       context: ./discovery
@@ -95,7 +80,6 @@ services:
         condition: service_healthy
     profiles:
       - discovery
-  
   appsmith:
     image: appsmith/appsmith-ce:v2.2
     container_name: lcnc-appsmith
@@ -104,7 +88,6 @@ services:
     volumes:
       - appsmith_data:/appsmith-stacks
     restart: unless-stopped
-
   postgres:
     image: postgres:18.4-alpine
     container_name: lcnc-postgres
@@ -115,20 +98,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./database/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
-
     healthcheck:
-      test:
-        [
-            
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
-        ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
     restart: unless-stopped
-
   opa:
     image: openpolicyagent/opa:1.19.0
     container_name: lcnc-opa
@@ -143,7 +119,6 @@ services:
     volumes:
       - ./policies:/policies:ro
     restart: unless-stopped
-
   governance-api:
     build:
       context: ./governance-api
@@ -152,7 +127,7 @@ services:
       RISK_ENGINE_URL: http://risk-engine:8001
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       OPA_URL: http://opa:8181
-
+      ML_ANALYTICS_URL: http://ml-analytics:8002
     volumes:
       - ./compliance:/compliance:ro
     ports:
@@ -164,20 +139,32 @@ services:
         condition: service_healthy
       opa:
         condition: service_started
+      ml-analytics:
+        condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
-        ]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
-
+  ml-analytics:
+    build:
+      context: ./ml-analytics
+    container_name: lcnc-ml-analytics
+    expose:
+      - "8002"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8002/health")
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
 volumes:
   postgres_data:
   appsmith_data:

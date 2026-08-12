@@ -30,6 +30,18 @@ CREATE TABLE IF NOT EXISTS applications (
     governance_outcome VARCHAR(50),
     governance_decided_at TIMESTAMPTZ,
 
+    connector_count INTEGER,
+    external_integration_count INTEGER,
+    unapproved_integration_count INTEGER,
+    external_domain_count INTEGER,
+    changes_last_24h INTEGER,
+
+    ml_anomaly_status VARCHAR(30) NOT NULL DEFAULT 'not_assessed',
+    ml_anomalous BOOLEAN,
+    ml_decision_score DOUBLE PRECISION,
+    ml_model_version VARCHAR(100),
+    ml_assessed_at TIMESTAMPTZ,
+
     first_discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 

@@ -1,0 +1,39 @@
+{
+  "model_version": "isolation-forest-v1",
+  "algorithm": "IsolationForest",
+  "n_estimators": 200,
+  "contamination": 0.01,
+  "random_state": 42,
+  "training_rows": 255,
+  "test_rows": 70,
+  "normal_test_rows": 45,
+  "anomaly_test_rows": 25,
+  "features": [
+    "owner_known",
+    "business_purpose_known",
+    "internet_exposed",
+    "external_integration_count",
+    "unapproved_integration_count",
+    "uses_api_key",
+    "connector_count",
+    "external_domain_count",
+    "changes_last_24h"
+  ],
+  "precision": 0.9615,
+  "recall": 1.0,
+  "f1": 0.9804,
+  "accuracy": 0.9857,
+  "false_positive_rate": 0.0222,
+  "confusion_matrix": [
+    [
+      44,
+      1
+    ],
+    [
+      0,
+      25
+    ]
+  ],
+  "synthetic_training_data": true,
+  "production_accuracy_claim": false
+}
