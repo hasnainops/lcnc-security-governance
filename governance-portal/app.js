@@ -235,6 +235,11 @@ async function loadHistory(applicationId) {
 
   await loadComplianceEvidence(applicationId);
 
+  await loadV2Evidence(
+    applicationId,
+    data
+  );
+
   detailPanel.classList.remove("hidden");
 }
 
@@ -291,3 +296,449 @@ document
 loadApplications().catch(error => {
   showMessage(error.message);
 });
+
+
+async function fetchJsonOrNull(url) {
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+
+function latest(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+
+  return items[0];
+}
+
+
+function displayPercent(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    Number.isNaN(Number(value))
+  ) {
+    return "—";
+  }
+
+  return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+
+function renderEvidenceCard(label, primary, secondary = "") {
+  return `
+    <div class="evidence-card">
+      <strong>${escapeHtml(label)}</strong>
+
+      <div class="primary">
+        ${escapeHtml(primary ?? "Not assessed")}
+      </div>
+
+      ${
+        secondary
+          ? `<div class="secondary">${escapeHtml(secondary)}</div>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+
+function renderV2Summary(history, compliance, guidance) {
+  const container =
+    document.getElementById("v2Summary");
+
+  if (!container) {
+    return;
+  }
+
+  const anomaly =
+    latest(history.ml_assessments);
+
+  const classification =
+    latest(history.classification_assessments);
+
+  const scan =
+    latest(history.security_scans);
+
+  const transfer =
+    latest(history.integration_transfer_events);
+
+  const access =
+    latest(history.access_decisions);
+
+  let html = "";
+
+  html += renderEvidenceCard(
+    "AI Anomaly Detection",
+    anomaly
+      ? (
+          anomaly.anomaly_detected === true
+            ? "Anomaly detected"
+            : "No anomaly detected"
+        )
+      : "Not assessed",
+    anomaly
+      ? `Model: ${
+          anomaly.model_version ||
+          anomaly.ml_model_version ||
+          "isolation-forest-v1"
+        }`
+      : ""
+  );
+
+  html += renderEvidenceCard(
+    "AI Classification",
+    classification
+      ? (
+          classification.suggested_classification ||
+          classification.predicted_classification ||
+          "Not assessed"
+        )
+      : "Not assessed",
+    classification
+      ? `Confidence: ${displayPercent(
+          classification.confidence
+        )}`
+      : ""
+  );
+
+  html += renderEvidenceCard(
+    "Security Scanner",
+    scan
+      ? `${scan.finding_count ?? "—"} finding(s)`
+      : "Not assessed",
+    scan
+      ? `Highest: ${
+          scan.highest_severity || "none"
+        }`
+      : ""
+  );
+
+  html += renderEvidenceCard(
+    "Latest Transfer",
+    transfer
+      ? (
+          transfer.decision ||
+          (
+            transfer.allowed === true
+              ? "allow"
+              : transfer.allowed === false
+                ? "block"
+                : "Not assessed"
+          )
+        )
+      : "Not assessed",
+    transfer
+      ? `Sensitivity: ${
+          transfer.effective_sensitivity ||
+          transfer.highest_sensitivity ||
+          "unknown"
+        }`
+      : ""
+  );
+
+  html += renderEvidenceCard(
+    "OPA Access",
+    access
+      ? (
+          access.decision ||
+          (
+            access.allowed === true
+              ? "allow"
+              : access.allowed === false
+                ? "deny"
+                : "Not assessed"
+          )
+        )
+      : "Not assessed",
+    access
+      ? `${
+          access.role || "unknown role"
+        } / ${
+          access.action ||
+          access.requested_action ||
+          "unknown action"
+        }`
+      : ""
+  );
+
+  html += renderEvidenceCard(
+    "Dynamic Compliance",
+    compliance
+      ? compliance.overall_status
+      : "Not assessed",
+    compliance
+      ? `Pass ${
+          compliance.summary?.pass ?? 0
+        } · Fail ${
+          compliance.summary?.fail ?? 0
+        } · Not assessed ${
+          compliance.summary?.not_assessed ?? 0
+        }`
+      : ""
+  );
+
+  if (guidance) {
+    html += `
+      <div class="evidence-card">
+        <strong>Citizen Security Score</strong>
+
+        <div class="score-card">
+          <span class="score-value">
+            ${escapeHtml(
+              guidance.security_score ?? "—"
+            )}
+          </span>
+
+          <span class="badge security-badge ${escapeHtml(
+            guidance.badge || "needs_attention"
+          )}">
+            ${escapeHtml(
+              guidance.badge || "Not assessed"
+            )}
+          </span>
+        </div>
+
+        <div class="secondary">
+          ${escapeHtml(
+            guidance.recommended_training_count ?? 0
+          )} targeted training recommendation(s)
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+
+function renderDynamicCompliance(compliance) {
+  const container =
+    document.getElementById(
+      "dynamicCompliance"
+    );
+
+  if (!container) {
+    return;
+  }
+
+  if (
+    !compliance ||
+    !Array.isArray(compliance.controls)
+  ) {
+    container.innerHTML = `
+      <div class="empty-state">
+        Dynamic compliance evidence unavailable.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = "";
+
+  for (const control of compliance.controls) {
+    const element =
+      document.createElement("div");
+
+    element.className =
+      `control-card ${control.status}`;
+
+    element.innerHTML = `
+      <p>
+        <strong>
+          ${escapeHtml(control.control_id)}
+        </strong>
+        ${badge(control.status)}
+      </p>
+
+      <p>
+        ${escapeHtml(
+          control.control_name ||
+          control.title ||
+          ""
+        )}
+      </p>
+
+      <p>
+        ${escapeHtml(
+          control.evidence ||
+          control.evidence_summary ||
+          ""
+        )}
+      </p>
+
+      ${
+        control.remediation
+          ? `
+            <p>
+              <strong>Action:</strong>
+              ${escapeHtml(control.remediation)}
+            </p>
+          `
+          : ""
+      }
+    `;
+
+    container.appendChild(element);
+  }
+}
+
+
+function renderCitizenGuidance(guidance) {
+  const container =
+    document.getElementById(
+      "citizenGuidance"
+    );
+
+  if (!container) {
+    return;
+  }
+
+  if (!guidance) {
+    container.innerHTML = `
+      <div class="empty-state">
+        Citizen-developer guidance unavailable.
+      </div>
+    `;
+    return;
+  }
+
+  const recommendations =
+    guidance.recommended_training || [];
+
+  let html = `
+    <div class="evidence-card">
+      <strong>Security posture</strong>
+
+      <div class="score-card">
+        <span class="score-value">
+          ${escapeHtml(
+            guidance.security_score ?? "—"
+          )}
+        </span>
+
+        <span class="badge security-badge ${escapeHtml(
+          guidance.badge || "needs_attention"
+        )}">
+          ${escapeHtml(
+            guidance.badge || "Not assessed"
+          )}
+        </span>
+      </div>
+
+      <div class="secondary">
+        Guidance version:
+        ${escapeHtml(
+          guidance.guidance_version || "unknown"
+        )}
+      </div>
+    </div>
+  `;
+
+  if (recommendations.length === 0) {
+    html += `
+      <div class="empty-state">
+        No targeted training is currently required.
+      </div>
+    `;
+
+    container.innerHTML = html;
+    return;
+  }
+
+  for (const item of recommendations) {
+    const guidanceItems =
+      Array.isArray(item.guidance)
+        ? item.guidance
+        : [];
+
+    html += `
+      <div class="training-card">
+        <p>
+          <strong>
+            ${escapeHtml(item.title)}
+          </strong>
+
+          ${badge(item.control_status)}
+        </p>
+
+        <p>
+          Trigger:
+          ${escapeHtml(item.trigger_control)}
+        </p>
+
+        <p>
+          ${escapeHtml(item.reason || "")}
+        </p>
+
+        ${
+          item.remediation
+            ? `
+              <p>
+                <strong>Remediation:</strong>
+                ${escapeHtml(item.remediation)}
+              </p>
+            `
+            : ""
+        }
+
+        ${
+          guidanceItems.length
+            ? `
+              <ul>
+                ${guidanceItems
+                  .map(
+                    line =>
+                      `<li>${escapeHtml(line)}</li>`
+                  )
+                  .join("")}
+              </ul>
+            `
+            : ""
+        }
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+
+async function loadV2Evidence(applicationId, history) {
+  const [
+    compliance,
+    guidance
+  ] = await Promise.all([
+    fetchJsonOrNull(
+      `/api/applications/${applicationId}/compliance/dynamic`
+    ),
+    fetchJsonOrNull(
+      `/api/applications/${applicationId}/citizen-guidance`
+    )
+  ]);
+
+  renderV2Summary(
+    history,
+    compliance,
+    guidance
+  );
+
+  renderDynamicCompliance(
+    compliance
+  );
+
+  renderCitizenGuidance(
+    guidance
+  );
+}
