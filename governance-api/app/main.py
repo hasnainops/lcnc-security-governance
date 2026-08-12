@@ -371,3 +371,52 @@ def assess_application_compliance(
     return assess_and_persist(
         application_id
     )
+
+
+from .citizen_guidance import (
+    build_guidance,
+)
+
+
+@app.get(
+    "/applications/{application_id}/citizen-guidance"
+)
+def get_citizen_guidance(
+    application_id: UUID,
+):
+    return build_guidance(
+        application_id
+    )
+
+
+from .training import (
+    TrainingCompletionRequest,
+    complete_training,
+    get_training_status,
+)
+
+
+@app.post(
+    "/applications/{application_id}/training/complete"
+)
+def complete_application_training(
+    application_id: UUID,
+    payload: TrainingCompletionRequest,
+):
+    return complete_training(
+        application_id,
+        payload,
+    )
+
+
+@app.get(
+    "/applications/{application_id}/training/status"
+)
+def get_application_training_status(
+    application_id: UUID,
+    subject_id: str,
+):
+    return get_training_status(
+        application_id,
+        subject_id,
+    )
