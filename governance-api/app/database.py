@@ -7,38 +7,9 @@ import psycopg
 from psycopg.rows import dict_row
 
 
-VAULT_ADDR = os.getenv(
-    "VAULT_ADDR",
-    "http://vault:8200",
-).rstrip("/")
-
-VAULT_ROLE_ID = os.environ["VAULT_ROLE_ID"]
-VAULT_SECRET_ID = os.environ["VAULT_SECRET_ID"]
-
-VAULT_DB_ROLE = os.getenv(
-    "VAULT_DB_ROLE",
-    "governance-api",
-)
-
-POSTGRES_HOST = os.getenv(
-    "POSTGRES_HOST",
-    "postgres",
-)
-
-POSTGRES_PORT = int(
-    os.getenv(
-        "POSTGRES_PORT",
-        "5432",
-    )
-)
-
-POSTGRES_DB = os.environ["POSTGRES_DB"]
-
-POSTGRES_SSLMODE = os.getenv(
-    "POSTGRES_SSLMODE",
-    "disable",
-)
-
+# Optional compatibility value.
+# Safe at import time; production does not need DATABASE_URL.
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 _lock = threading.RLock()
 
@@ -65,7 +36,58 @@ def _cache_deadline(ttl_seconds: int):
     )
 
 
-def _login_to_vault(force=False):
+def _vault_config():
+    role_id = os.getenv("VAULT_ROLE_ID")
+    secret_id = os.getenv("VAULT_SECRET_ID")
+    postgres_db = os.getenv("POSTGRES_DB")
+
+    missing = []
+
+    if not role_id:
+        missing.append("VAULT_ROLE_ID")
+
+    if not secret_id:
+        missing.append("VAULT_SECRET_ID")
+
+    if not postgres_db:
+        missing.append("POSTGRES_DB")
+
+    if missing:
+        raise RuntimeError(
+            "Missing runtime database configuration: "
+            + ", ".join(missing)
+        )
+
+    return {
+        "vault_addr": os.getenv(
+            "VAULT_ADDR",
+            "http://vault:8200",
+        ).rstrip("/"),
+        "role_id": role_id,
+        "secret_id": secret_id,
+        "vault_db_role": os.getenv(
+            "VAULT_DB_ROLE",
+            "governance-api",
+        ),
+        "postgres_host": os.getenv(
+            "POSTGRES_HOST",
+            "postgres",
+        ),
+        "postgres_port": int(
+            os.getenv(
+                "POSTGRES_PORT",
+                "5432",
+            )
+        ),
+        "postgres_db": postgres_db,
+        "postgres_sslmode": os.getenv(
+            "POSTGRES_SSLMODE",
+            "disable",
+        ),
+    }
+
+
+def _login_to_vault(config, force=False):
     global _cached_vault_token
     global _vault_token_valid_until
 
@@ -81,12 +103,12 @@ def _login_to_vault(force=False):
 
         response = httpx.post(
             (
-                f"{VAULT_ADDR}"
+                f"{config['vault_addr']}"
                 "/v1/auth/approle/login"
             ),
             json={
-                "role_id": VAULT_ROLE_ID,
-                "secret_id": VAULT_SECRET_ID,
+                "role_id": config["role_id"],
+                "secret_id": config["secret_id"],
             },
             timeout=5.0,
         )
@@ -94,11 +116,9 @@ def _login_to_vault(force=False):
         response.raise_for_status()
 
         payload = response.json()
-
         auth = payload.get("auth") or {}
 
         token = auth.get("client_token")
-
         ttl = int(
             auth.get("lease_duration") or 0
         )
@@ -110,7 +130,6 @@ def _login_to_vault(force=False):
             )
 
         _cached_vault_token = token
-
         _vault_token_valid_until = (
             _cache_deadline(ttl)
         )
@@ -118,11 +137,15 @@ def _login_to_vault(force=False):
         return token
 
 
-def _request_database_credentials(token):
-    response = httpx.get(
+def _request_database_credentials(
+    config,
+    token,
+):
+    return httpx.get(
         (
-            f"{VAULT_ADDR}"
-            f"/v1/database/creds/{VAULT_DB_ROLE}"
+            f"{config['vault_addr']}"
+            "/v1/database/creds/"
+            f"{config['vault_db_role']}"
         ),
         headers={
             "X-Vault-Token": token,
@@ -130,10 +153,8 @@ def _request_database_credentials(token):
         timeout=5.0,
     )
 
-    return response
 
-
-def _get_database_credentials():
+def _get_database_credentials(config):
     global _cached_db_username
     global _cached_db_password
     global _db_credentials_valid_until
@@ -153,10 +174,15 @@ def _get_database_credentials():
                 _cached_db_password,
             )
 
-        token = _login_to_vault()
+        token = _login_to_vault(
+            config
+        )
 
-        response = _request_database_credentials(
-            token
+        response = (
+            _request_database_credentials(
+                config,
+                token,
+            )
         )
 
         if response.status_code in {
@@ -167,19 +193,20 @@ def _get_database_credentials():
             _vault_token_valid_until = 0.0
 
             token = _login_to_vault(
-                force=True
+                config,
+                force=True,
             )
 
             response = (
                 _request_database_credentials(
-                    token
+                    config,
+                    token,
                 )
             )
 
         response.raise_for_status()
 
         payload = response.json()
-
         data = payload.get("data") or {}
 
         username = data.get("username")
@@ -213,17 +240,36 @@ def _get_database_credentials():
 
 
 def get_connection():
+    # Optional compatibility/testing path.
+    database_url = (
+        os.getenv("DATABASE_URL")
+        or DATABASE_URL
+    )
+
+    if database_url:
+        return psycopg.connect(
+            database_url,
+            row_factory=dict_row,
+        )
+
+    # Production path: AppRole + dynamic Vault DB credentials.
+    config = _vault_config()
+
     username, password = (
-        _get_database_credentials()
+        _get_database_credentials(
+            config
+        )
     )
 
     return psycopg.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        dbname=POSTGRES_DB,
+        host=config["postgres_host"],
+        port=config["postgres_port"],
+        dbname=config["postgres_db"],
         user=username,
         password=password,
-        sslmode=POSTGRES_SSLMODE,
+        sslmode=config[
+            "postgres_sslmode"
+        ],
         connect_timeout=5,
         row_factory=dict_row,
     )

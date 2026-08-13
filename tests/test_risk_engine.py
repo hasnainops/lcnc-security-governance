@@ -1,11 +1,29 @@
+import importlib
 import sys
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "risk-engine"))
+RISK_ENGINE_APP_DIR = ROOT / "risk-engine" / "app"
 
-from app.main import calculate_risk
-from app.models import ApplicationRiskInput
+package_name = "risk_engine_app"
+
+package = types.ModuleType(package_name)
+package.__path__ = [str(RISK_ENGINE_APP_DIR)]
+package.__package__ = package_name
+
+sys.modules[package_name] = package
+
+main_module = importlib.import_module(
+    "risk_engine_app.main"
+)
+
+models_module = importlib.import_module(
+    "risk_engine_app.models"
+)
+
+calculate_risk = main_module.calculate_risk
+ApplicationRiskInput = models_module.ApplicationRiskInput
 
 
 def test_shadow_application_scores_55_high():

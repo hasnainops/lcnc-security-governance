@@ -68,6 +68,8 @@ def make_application():
         "internet_exposed": False,
         "external_integration": True,
         "integration_approved": False,
+        "external_integration_count": 1,
+        "unapproved_integration_count": 1,
         "credential_type": "api_key",
         "risk_score": 90,
         "risk_level": "critical",
