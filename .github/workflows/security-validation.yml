@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/mvp-v3-enterprise-automation
   pull_request:
 
 permissions:

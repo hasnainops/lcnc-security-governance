@@ -1,42 +1,86 @@
 version: 2
-
 updates:
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /governance-api
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /risk-engine
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /ml-analytics
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /security-scanner
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /dlp-engine
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /integration-gateway
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: pip
-    directory: /discovery
-    schedule:
-      interval: weekly
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /discovery
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /dlp-engine
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /enterprise-discovery
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /governance-api
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /governance-automation
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /integration-gateway
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /ml-analytics
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /risk-engine
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /security-scanner
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /discovery
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /dlp-engine
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /enterprise-discovery
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /governance-api
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /governance-automation
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /governance-portal
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /integration-gateway
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /ml-analytics
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /risk-engine
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /security-scanner
+  schedule:
+    interval: weekly
+- package-ecosystem: docker-compose
+  directory: /
+  schedule:
+    interval: weekly

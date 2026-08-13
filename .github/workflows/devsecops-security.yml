@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/mvp-v2-ai-security
+      - feature/mvp-v3-enterprise-automation
 
   pull_request:
     branches:
