@@ -16,11 +16,12 @@ Status definitions:
 
 | Requirement | Implementation | Evidence | Status |
 |---|---|---|---|
-| Discover LCNC applications | Continuous Appsmith discovery worker | `discovery/appsmith_discovery.py` | COMPLETE |
-| Continuous monitoring | 60-second discovery cycle | Docker Compose discovery service | COMPLETE |
-| Detect unknown applications | External Appsmith IDs compared with governance inventory | Discovery workflow | COMPLETE |
+| Discover LCNC applications | Appsmith discovery plus normalized enterprise discovery ingestion | `discovery` + `enterprise-discovery` | COMPLETE |
+| Continuous monitoring | 60-second Appsmith discovery plus enterprise discovery ingestion | Docker Compose discovery services | COMPLETE |
+| Detect unknown applications | Source identifiers compared with governance inventory and persisted discovery evidence | Discovery workflows | COMPLETE |
 | Avoid assuming missing telemetry is safe | Missing telemetry remains pending / unknown | Discovery + governance logic | COMPLETE |
-| Multiple enterprise LCNC platforms | Appsmith reference adapter only | Enterprise architecture documents future connectors | PARTIAL |
+| Multi-source enterprise discovery | Normalized enterprise discovery service supports source adapters and ML handoff | `enterprise-discovery` | COMPLETE |
+| Production vendor connectors | Appsmith is connected; generic enterprise feed is implemented; Defender Cloud Apps adapter is not configured | Enterprise discovery source registry | PARTIAL |
 
 ---
 
@@ -76,7 +77,10 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 | Automated risk assessment | Risk Engine | `risk-engine` | COMPLETE |
 | Explainable risk factors | Score + contributing factors | Risk assessment response | COMPLETE |
 | Risk-based workflow | AUTO_APPROVE / BUSINESS_REVIEW / SECURITY_REVIEW / BLOCK | Governance workflow | COMPLETE |
-| Human escalation | Business and Security review states | Workflow + procedure | COMPLETE |
+| Human escalation | Persisted approval requests, required roles, SLA deadlines and escalation events | `governance-automation` | COMPLETE |
+| Automated approval routing | Governance API automatically hands decisions to Governance Automation | Governance evaluation response + approval records | COMPLETE |
+| Human decision audit | Human decisions and reasons are persisted as approval events | `approval_requests` + `approval_events` | COMPLETE |
+| Hard-block protection | Human approval cannot override a mandatory BLOCK outcome | Governance Automation decision logic | COMPLETE |
 | Historical assessments | Persisted evidence | PostgreSQL | COMPLETE |
 
 ---
@@ -102,6 +106,10 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 | Restricted-data restrictions | Developer modify/export restricted | Access policy | COMPLETE |
 | Registration-aware privileged actions | Privileged actions require registered app | Access policy | COMPLETE |
 | Persist access evidence | `access_decisions` | Governance API | COMPLETE |
+| JIT privileged access | Request → accountable approval → time-limited grant | `privilege_requests` + `privilege_grants` | COMPLETE |
+| Automatic privilege expiry | Expired grants are invalidated automatically | Governance Automation expiry worker | COMPLETE |
+| JIT policy enforcement | OPA can consume valid JIT grants without bypassing registration or restricted-data guardrails | `access.rego` + OPA tests | COMPLETE |
+| Privilege audit trail | Request, decision, grant, expiry and revoke events are persisted | `privilege_events` | COMPLETE |
 | Enterprise SSO/MFA | Not implemented | Architecture production boundary | PARTIAL |
 
 ---
@@ -160,8 +168,11 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 |---|---|---|---|
 | Security score | Evidence-based score | Citizen Guidance API | COMPLETE |
 | Control-specific remediation | Recommendations from failed controls | Citizen Guidance | COMPLETE |
-| Targeted training | Modules mapped to control gaps | Training implementation | COMPLETE |
-| Training completion tracking | Per application/subject/module | `training_completions` | COMPLETE |
+| Targeted training | Modules mapped automatically to control gaps | Training automation | COMPLETE |
+| Automated training assignment | Required modules are assigned with subject, reason and due date | `training_assignments` | COMPLETE |
+| Training completion tracking | Per application/subject/module | `training_completions` + assignments | COMPLETE |
+| Approval training gate | Approval can be blocked while required training remains incomplete | Governance Automation training gate | COMPLETE |
+| Training audit events | Assignment, completion and status transitions are persisted | `training_events` | COMPLETE |
 | Gamification | Gold/Silver/Bronze/Needs Attention | Citizen Guidance | COMPLETE |
 | Achievement status | training_pending/security_progress/secure_builder | Training service | COMPLETE |
 | Enterprise LMS | Not implemented | MVP boundary | OUT OF SCOPE |
@@ -176,7 +187,10 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 | Safe configuration template | `.env.example` placeholders | Repository | COMPLETE |
 | Services consume environment variables | Docker Compose/application code | Configuration | COMPLETE |
 | Repository secret scanning | CI security validation | GitHub Actions | COMPLETE |
-| Centralized secrets manager | Not implemented | Enterprise architecture | PARTIAL |
+| Centralized secrets manager | Vault provides centralized runtime secret access | Vault service | COMPLETE |
+| Workload authentication to Vault | Governance API authenticates through AppRole | Vault AppRole configuration | COMPLETE |
+| Dynamic database credentials | Vault PostgreSQL secrets engine issues time-limited credentials | Governance API runtime connection | COMPLETE |
+| Production Vault hardening | Local MVP uses Vault development-mode configuration | Production architecture boundary | PARTIAL |
 
 ---
 
@@ -190,6 +204,8 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 | Misconfiguration scanning | Trivy filesystem scan | CI | COMPLETE |
 | Dependency monitoring | Dependabot | `.github/dependabot.yml` | COMPLETE |
 | Secret validation | CI security workflow | GitHub Actions | COMPLETE |
+| Static code/security analysis | SonarQube analysis and Quality Gate | SonarQube `localhost:9000` | COMPLETE |
+| Baseline DAST | OWASP ZAP baseline workflow | `.github/workflows/zap-baseline.yml` | PARTIAL |
 | Project container-image validation | HIGH/CRITICAL scans using configured criteria | Local Trivy reports | COMPLETE |
 
 Important limitation:
@@ -229,6 +245,10 @@ The project does not claim that images contain zero vulnerabilities of every sev
 | Transfer decisions | Persisted safe evidence | Database | COMPLETE |
 | Compliance snapshots | Persisted | Database | COMPLETE |
 | Training evidence | Persisted | Database | COMPLETE |
+| Enterprise discovery evidence | Normalized discovery records | `enterprise_discoveries` | COMPLETE |
+| Approval lifecycle evidence | Requests, escalation and human decisions | `approval_requests` + `approval_events` | COMPLETE |
+| JIT privilege evidence | Requests, grants, expiry and revocation | privilege tables/events | COMPLETE |
+| Training assignment evidence | Assignment and lifecycle events | `training_assignments` + `training_events` | COMPLETE |
 | Tamper-evident enterprise audit store | Not implemented | Enterprise target | PARTIAL |
 
 ---
@@ -303,7 +323,7 @@ The following are deliberately outside the local MVP:
 - MFA
 - workload identity
 - mutual TLS
-- enterprise secrets manager
+- production-hardened Vault deployment with TLS, persistent storage, HA and operational unseal/recovery controls
 - tamper-evident audit storage
 - high availability
 - disaster recovery
