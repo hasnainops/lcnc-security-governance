@@ -15,7 +15,12 @@ OPA_URL = os.getenv(
     "http://opa:8181",
 )
 
-ACCESS_POLICY_VERSION = "access-v1"
+GOVERNANCE_AUTOMATION_URL = os.getenv(
+    "GOVERNANCE_AUTOMATION_URL",
+    "http://governance-automation:8007",
+)
+
+ACCESS_POLICY_VERSION = "access-v2"
 
 
 class AccessRequest(BaseModel):
@@ -34,6 +39,53 @@ class AccessRequest(BaseModel):
         "review",
         "approve",
     ]
+
+
+def check_jit_privilege(
+    application_id: UUID,
+    request: AccessRequest,
+):
+    try:
+        response = httpx.get(
+            (
+                f"{GOVERNANCE_AUTOMATION_URL}"
+                "/privileges/check"
+            ),
+            params={
+                "application_id": str(application_id),
+                "subject_id": request.subject_id,
+                "action": request.action,
+            },
+            timeout=5.0,
+        )
+
+        response.raise_for_status()
+
+        result = response.json()
+
+        grant = result.get("grant")
+
+        if not result.get("active") or not grant:
+            return {
+                "active": False,
+                "grant_id": None,
+                "granted_action": None,
+            }
+
+        return {
+            "active": True,
+            "grant_id": grant.get("id"),
+            "granted_action": grant.get(
+                "granted_action"
+            ),
+        }
+
+    except httpx.HTTPError:
+        return {
+            "active": False,
+            "grant_id": None,
+            "granted_action": None,
+        }
 
 
 def authorize_and_persist(
@@ -56,6 +108,11 @@ def authorize_and_persist(
             detail="Application not found",
         )
 
+    jit = check_jit_privilege(
+        application_id,
+        request,
+    )
+
     policy_input = {
         "subject_id": request.subject_id,
         "role": request.role,
@@ -66,6 +123,7 @@ def authorize_and_persist(
         "data_classification": (
             application["data_classification"]
         ),
+        "jit": jit,
     }
 
     try:
@@ -205,6 +263,14 @@ def authorize_and_persist(
         "data_classification": (
             application["data_classification"]
         ),
+        "jit": {
+            "active": jit["active"],
+            "grant_id": jit["grant_id"],
+            "grant_used": result.get(
+                "jit_grant_used",
+                False,
+            ),
+        },
         "policy_version": ACCESS_POLICY_VERSION,
         "evaluated_at": persisted["evaluated_at"],
     }

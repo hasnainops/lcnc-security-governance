@@ -89,3 +89,56 @@ test_developer_cannot_export_restricted_app if {
 
     result.allow == false
 }
+
+
+test_viewer_with_jit_can_export_confidential_app if {
+    result := decision with input as {
+        "role": "viewer",
+        "action": "export",
+        "registration_status": "registered",
+        "data_classification": "confidential",
+        "jit": {
+            "active": true,
+            "granted_action": "export"
+        }
+    }
+
+    result.allow == true
+    result.jit_grant_used == true
+}
+
+
+test_jit_cannot_export_restricted_app if {
+    result := decision with input as {
+        "role": "viewer",
+        "action": "export",
+        "registration_status": "registered",
+        "data_classification": "restricted",
+        "jit": {
+            "active": true,
+            "granted_action": "export"
+        }
+    }
+
+    result.allow == false
+
+    "JIT grants cannot export restricted applications." in result.reasons
+}
+
+
+test_jit_cannot_bypass_registration if {
+    result := decision with input as {
+        "role": "viewer",
+        "action": "export",
+        "registration_status": "unregistered",
+        "data_classification": "confidential",
+        "jit": {
+            "active": true,
+            "granted_action": "export"
+        }
+    }
+
+    result.allow == false
+
+    "Privileged actions require a registered application." in result.reasons
+}

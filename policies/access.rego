@@ -1,11 +1,49 @@
 package lcnc.access
 
 default allow := false
+default jit_permits := false
 
 role := lower(object.get(input, "role", "unknown"))
-requested_action := lower(object.get(input, "action", "unknown"))
-classification := lower(object.get(input, "data_classification", "unknown"))
-registration := lower(object.get(input, "registration_status", "unknown"))
+
+requested_action := lower(
+    object.get(input, "action", "unknown")
+)
+
+classification := lower(
+    object.get(
+        input,
+        "data_classification",
+        "unknown",
+    )
+)
+
+registration := lower(
+    object.get(
+        input,
+        "registration_status",
+        "unknown",
+    )
+)
+
+jit := object.get(
+    input,
+    "jit",
+    {},
+)
+
+jit_active := object.get(
+    jit,
+    "active",
+    false,
+)
+
+jit_action := lower(
+    object.get(
+        jit,
+        "granted_action",
+        "unknown",
+    )
+)
 
 
 privileged_action if {
@@ -67,20 +105,39 @@ role_permits if {
 }
 
 
-deny contains "Role is not permitted to perform this action." if {
-    not role_permits
+jit_permits if {
+    jit_active
+    privileged_action
+    jit_action == requested_action
 }
+
+
+effective_permission if {
+    role_permits
+}
+
+effective_permission if {
+    jit_permits
+}
+
+
+deny contains "Role is not permitted to perform this action." if {
+    not effective_permission
+}
+
 
 deny contains "Privileged actions require a registered application." if {
     registration != "registered"
     privileged_action
 }
 
+
 deny contains "Developers cannot modify restricted applications." if {
     role == "developer"
     requested_action == "modify"
     classification == "restricted"
 }
+
 
 deny contains "Developers cannot export restricted applications." if {
     role == "developer"
@@ -89,8 +146,24 @@ deny contains "Developers cannot export restricted applications." if {
 }
 
 
+deny contains "JIT grants cannot modify restricted applications." if {
+    jit_permits
+    role != "security_admin"
+    requested_action == "modify"
+    classification == "restricted"
+}
+
+
+deny contains "JIT grants cannot export restricted applications." if {
+    jit_permits
+    role != "security_admin"
+    requested_action == "export"
+    classification == "restricted"
+}
+
+
 allow if {
-    role_permits
+    effective_permission
     count(deny) == 0
 }
 
@@ -107,7 +180,10 @@ decision_action := "deny" if {
 decision := {
     "allow": allow,
     "action": decision_action,
-    "reasons": sort([reason | deny[reason]]),
+    "reasons": sort(
+        [reason | deny[reason]]
+    ),
     "role": role,
     "requested_action": requested_action,
+    "jit_grant_used": jit_permits,
 }

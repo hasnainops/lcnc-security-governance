@@ -13,11 +13,19 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
 
+from .jit import (
+    jit_router,
+    start_jit_expiry_worker,
+    stop_jit_expiry_worker,
+)
+
 app = FastAPI(
     title="LCNC Governance Automation",
     version="0.1.0",
 )
 
+
+app.include_router(jit_router)
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -227,10 +235,13 @@ def start_escalation_worker():
     )
     thread.start()
 
+    start_jit_expiry_worker()
+
 
 @app.on_event("shutdown")
 def stop_escalation_worker():
     _stop_event.set()
+    stop_jit_expiry_worker()
 
 
 @app.get("/", response_class=HTMLResponse)
