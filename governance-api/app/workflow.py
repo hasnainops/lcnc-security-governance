@@ -14,6 +14,7 @@ from .metrics import (
     RISK_SCORE,
 )
 from .policy import evaluate_and_persist
+from .training import assign_required_training
 
 
 def determine_outcome(assessment, policy):
@@ -138,6 +139,16 @@ def run_governance_workflow(application_id: UUID):
             application_id
         )
 
+        try:
+            training_automation = assign_required_training(
+                application_id
+            )
+        except Exception as exc:
+            training_automation = {
+                "status": "assignment_error",
+                "error": str(exc),
+            }
+
         return {
             "application_id": application_id,
             "application_name": assessment["application_name"],
@@ -162,6 +173,7 @@ def run_governance_workflow(application_id: UUID):
                 "created_at": decision["created_at"],
             },
             "approval_automation": approval_automation,
+            "training_automation": training_automation,
         }
 
     finally:

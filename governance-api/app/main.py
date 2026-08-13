@@ -391,7 +391,9 @@ def get_citizen_guidance(
 
 from .training import (
     TrainingCompletionRequest,
+    assign_required_training,
     complete_training,
+    get_training_assignments,
     get_training_status,
 )
 
@@ -407,6 +409,29 @@ def complete_application_training(
         application_id,
         payload,
     )
+
+
+@app.get(
+    "/applications/{application_id}/training/assignments"
+)
+def get_application_training_assignments(
+    application_id: UUID,
+):
+    return get_training_assignments(
+        application_id
+    )
+
+
+@app.post(
+    "/applications/{application_id}/training/automation/run"
+)
+def run_application_training_automation(
+    application_id: UUID,
+):
+    return assign_required_training(
+        application_id
+    )
+
 
 
 @app.get(

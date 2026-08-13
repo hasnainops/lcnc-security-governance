@@ -143,6 +143,41 @@ def insert_event(
     )
 
 
+
+def get_training_gate(
+    connection,
+    application_id,
+):
+    blocking = connection.execute(
+        """
+        SELECT
+            id,
+            module_id,
+            subject_id,
+            trigger_control,
+            trigger_status,
+            status,
+            due_at
+        FROM training_assignments
+        WHERE application_id = %s
+          AND required = TRUE
+          AND status IN (
+              'assigned',
+              'unassigned',
+              'overdue'
+          )
+        ORDER BY due_at ASC;
+        """,
+        (application_id,),
+    ).fetchall()
+
+    return {
+        "approval_ready": len(blocking) == 0,
+        "required_incomplete_count": len(blocking),
+        "blocking_assignments": blocking,
+    }
+
+
 def escalate_overdue():
     now = datetime.now(timezone.utc)
 
@@ -605,6 +640,50 @@ def record_decision(
                 ),
             )
 
+        if payload.decision == "approve":
+            training_gate = get_training_gate(
+                connection,
+                approval["application_id"],
+            )
+
+            if not training_gate["approval_ready"]:
+                insert_event(
+                    connection,
+                    approval_id,
+                    "approval_blocked_training",
+                    actor=payload.actor,
+                    details={
+                        "required_incomplete_count": (
+                            training_gate[
+                                "required_incomplete_count"
+                            ]
+                        ),
+                        "blocking_modules": [
+                            item["module_id"]
+                            for item in training_gate[
+                                "blocking_assignments"
+                            ]
+                        ],
+                    },
+                )
+
+                connection.commit()
+
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "reason": (
+                            "required_training_incomplete"
+                        ),
+                        "message": (
+                            "Required citizen-developer "
+                            "training must be completed "
+                            "before approval."
+                        ),
+                        **training_gate,
+                    },
+                )
+
         status_map = {
             "approve": "approved",
             "reject": "rejected",
@@ -660,4 +739,47 @@ def run_escalations():
     return {
         "status": "completed",
         "escalated_requests": count,
+    }
+
+
+@app.get(
+    "/approvals/{approval_id}/training-gate"
+)
+def approval_training_gate(
+    approval_id: UUID,
+):
+    with get_connection() as connection:
+        approval = connection.execute(
+            """
+            SELECT
+                ar.*,
+                a.name AS application_name
+            FROM approval_requests ar
+            JOIN applications a
+              ON a.id = ar.application_id
+            WHERE ar.id = %s;
+            """,
+            (approval_id,),
+        ).fetchone()
+
+        if not approval:
+            raise HTTPException(
+                status_code=404,
+                detail="Approval request not found.",
+            )
+
+        gate = get_training_gate(
+            connection,
+            approval["application_id"],
+        )
+
+    return {
+        "approval_id": approval_id,
+        "application_id": (
+            approval["application_id"]
+        ),
+        "application_name": (
+            approval["application_name"]
+        ),
+        **gate,
     }
