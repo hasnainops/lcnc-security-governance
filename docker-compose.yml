@@ -228,6 +228,24 @@ services:
       retries: 10
       start_period: 5s
     restart: unless-stopped
+
+  enterprise-discovery:
+    build:
+      context: ./enterprise-discovery
+    container_name: lcnc-enterprise-discovery
+    ports:
+      - "127.0.0.1:8006:8006"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8006/health")
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
 volumes:
   postgres_data:
   appsmith_data:
