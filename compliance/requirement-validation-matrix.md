@@ -66,7 +66,7 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 | Detect HTTP integration | SEC-006 | Scanner rules | COMPLETE |
 | Detect possible embedded secret | SEC-007 | Scanner rules | COMPLETE |
 | Sensitive data + external integration | SEC-008 | Scanner rules | COMPLETE |
-| Enterprise SAST/DAST replacement | Not intended | Current scanner scope | OUT OF SCOPE |
+| Dedicated SAST/DAST controls | SonarQube provides static analysis; OWASP ZAP baseline workflow provides runtime DAST coverage | SonarQube + `.github/workflows/zap-baseline.yml` | PARTIAL |
 
 ---
 
@@ -389,7 +389,7 @@ PARTIAL BY DESIGN
 
 The logical control architecture is demonstrated.
 
-Enterprise identity, high availability, centralized secrets, SIEM integration, network enforcement and production-scale ML remain documented production extensions.
+Enterprise identity, high availability, production-hardened Vault operations, SIEM integration, enterprise-wide network enforcement and production-scale ML remain documented production extensions.
 
 ## Recommended Interview Position
 
