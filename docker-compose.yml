@@ -158,8 +158,8 @@ services:
     build:
       context: ./ml-analytics
     container_name: lcnc-ml-analytics
-    expose:
-      - "8002"
+    ports:
+      - "127.0.0.1:8002:8002"
     healthcheck:
       test:
         - CMD
@@ -192,8 +192,9 @@ services:
     build:
       context: ./dlp-engine
     container_name: lcnc-dlp-engine
-    expose:
-      - "8004"
+    ports:
+      - "127.0.0.1:8002:8002"
+
     healthcheck:
       test:
         - CMD
@@ -233,8 +234,16 @@ services:
     build:
       context: ./enterprise-discovery
     container_name: lcnc-enterprise-discovery
+    environment:
+      ML_ANALYTICS_URL: http://ml-analytics:8002
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - "127.0.0.1:8006:8006"
+    depends_on:
+      ml-analytics:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD
