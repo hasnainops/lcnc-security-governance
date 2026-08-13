@@ -125,7 +125,14 @@ services:
     container_name: lcnc-governance-api
     environment:
       RISK_ENGINE_URL: http://risk-engine:8001
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
+      VAULT_DB_ROLE: governance-api
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
       OPA_URL: http://opa:8181
       ML_ANALYTICS_URL: http://ml-analytics:8002
       SECURITY_SCANNER_URL: http://security-scanner:8003
@@ -139,6 +146,8 @@ services:
       risk-engine:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      vault:
         condition: service_healthy
       opa:
         condition: service_started
