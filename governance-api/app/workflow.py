@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb
 
+from .approval_automation import route_governance_approval
 from .assessment import assess_and_persist
 from .database import get_connection
 from .metrics import (
@@ -133,6 +134,10 @@ def run_governance_workflow(application_id: UUID):
             status=governance["status"],
         ).inc()
 
+        approval_automation = route_governance_approval(
+            application_id
+        )
+
         return {
             "application_id": application_id,
             "application_name": assessment["application_name"],
@@ -156,6 +161,7 @@ def run_governance_workflow(application_id: UUID):
                 "reasons": decision["reasons"],
                 "created_at": decision["created_at"],
             },
+            "approval_automation": approval_automation,
         }
 
     finally:
