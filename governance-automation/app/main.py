@@ -143,7 +143,6 @@ def insert_event(
     )
 
 
-
 def get_training_gate(
     connection,
     application_id,
@@ -517,6 +516,57 @@ def route_application(
         if existing:
             return existing
 
+        superseded = connection.execute(
+            """
+            WITH active_requests AS (
+                SELECT
+                    id,
+                    status
+                FROM approval_requests
+                WHERE application_id = %s
+                  AND governance_decision_id <> %s
+                  AND status IN (
+                      'pending',
+                      'escalated'
+                  )
+                FOR UPDATE
+            )
+            UPDATE approval_requests ar
+            SET
+                status = 'superseded',
+                updated_at = %s
+            FROM active_requests
+            WHERE ar.id = active_requests.id
+            RETURNING
+                ar.id,
+                ar.governance_decision_id,
+                active_requests.status
+                    AS previous_status;
+            """,
+            (
+                application_id,
+                decision["id"],
+                now,
+            ),
+        ).fetchall()
+
+        for request in superseded:
+            insert_event(
+                connection,
+                request["id"],
+                "approval_superseded",
+                actor="governance-automation",
+                details={
+                    "previous_status": (
+                        request["previous_status"]
+                    ),
+                    (
+                        "superseded_by_"
+                        "governance_decision_id"
+                    ): str(decision["id"]),
+                },
+            )
+
         routing = route_settings(
             decision["outcome"],
             decision["required_role"],
@@ -616,12 +666,13 @@ def record_decision(
             "approved",
             "rejected",
             "changes_requested",
+            "superseded",
         ):
             raise HTTPException(
                 status_code=409,
                 detail=(
                     "Approval request is already "
-                    "decided."
+                    "decided or no longer active."
                 ),
             )
 
