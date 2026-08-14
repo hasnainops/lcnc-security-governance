@@ -239,22 +239,20 @@ def _get_database_credentials(config):
         )
 
 
-def get_connection():
-    # Optional compatibility/testing path.
-    database_url = (
-        os.getenv("DATABASE_URL")
-        or DATABASE_URL
-    )
+def _invalidate_database_credentials():
+    global _cached_db_username
+    global _cached_db_password
+    global _db_credentials_valid_until
 
-    if database_url:
-        return psycopg.connect(
-            database_url,
-            row_factory=dict_row,
-        )
+    with _lock:
+        _cached_db_username = None
+        _cached_db_password = None
+        _db_credentials_valid_until = 0.0
 
-    # Production path: AppRole + dynamic Vault DB credentials.
-    config = _vault_config()
 
+def _connect_with_dynamic_credentials(
+    config,
+):
     username, password = (
         _get_database_credentials(
             config
@@ -273,3 +271,63 @@ def get_connection():
         connect_timeout=5,
         row_factory=dict_row,
     )
+
+
+def get_connection():
+    # Optional compatibility/testing path.
+    database_url = (
+        os.getenv("DATABASE_URL")
+        or DATABASE_URL
+    )
+
+    if database_url:
+        return psycopg.connect(
+            database_url,
+            row_factory=dict_row,
+        )
+
+    # Production path:
+    # AppRole + dynamic Vault DB credentials.
+    config = _vault_config()
+
+    try:
+        return (
+            _connect_with_dynamic_credentials(
+                config
+            )
+        )
+
+    except psycopg.OperationalError as exc:
+        sqlstate = getattr(
+            exc,
+            "sqlstate",
+            None,
+        )
+
+        message = str(exc).lower()
+
+        auth_failure = (
+            (
+                sqlstate is not None
+                and sqlstate.startswith("28")
+            )
+            or (
+                "password authentication failed"
+                in message
+            )
+            or (
+                "role" in message
+                and "does not exist" in message
+            )
+        )
+
+        if not auth_failure:
+            raise
+
+        _invalidate_database_credentials()
+
+        return (
+            _connect_with_dynamic_credentials(
+                config
+            )
+        )
