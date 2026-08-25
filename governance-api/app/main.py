@@ -445,3 +445,18 @@ def get_application_training_status(
         application_id,
         subject_id,
     )
+
+
+from .enterprise_handoff import (
+    EnterpriseDiscoveryHandoff,
+    persist_enterprise_discovery_handoff,
+)
+
+
+@app.post("/enterprise-discovery/handoff")
+def enterprise_discovery_handoff(
+    payload: EnterpriseDiscoveryHandoff,
+):
+    return persist_enterprise_discovery_handoff(
+        payload.model_dump()
+    )

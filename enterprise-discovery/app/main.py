@@ -26,6 +26,11 @@ ML_ANALYTICS_URL = os.getenv(
     "http://ml-analytics:8002",
 )
 
+GOVERNANCE_API_URL = os.getenv(
+    "GOVERNANCE_API_URL",
+    "http://governance-api:8000",
+)
+
 
 class DiscoveryEvent(BaseModel):
     source: str = Field(min_length=1, max_length=100)
@@ -154,6 +159,98 @@ def analyze_with_ml(record: dict) -> dict:
         return {
             "status": "assessed",
             "result": result,
+        }
+
+    except Exception as exc:
+        return {
+            "status": "error",
+            "error": str(exc),
+        }
+
+
+def handoff_to_governance(
+    record: dict,
+    ml: dict,
+) -> dict:
+    """Send an already-computed ML result to Governance API.
+
+    This function never performs ML inference itself.
+    """
+
+    if (
+        ml.get("status") != "assessed"
+        or ml.get("result") is None
+    ):
+        return {
+            "status": "not_ready",
+        }
+
+    observed_at = record.get("observed_at")
+
+    if isinstance(observed_at, datetime):
+        observed_at = observed_at.isoformat()
+
+    payload = {
+        "source": record["source"],
+        "external_id": record["external_id"],
+        "name": record["name"],
+        "platform": record["platform"],
+        "authorization_status": record.get(
+            "authorization_status",
+            "unknown",
+        ),
+        "owner_known": record.get("owner_known"),
+        "business_purpose_known": record.get(
+            "business_purpose_known"
+        ),
+        "internet_exposed": record.get(
+            "internet_exposed"
+        ),
+        "uses_api_key": record.get("uses_api_key"),
+        "external_integration_count": record.get(
+            "external_integration_count"
+        ),
+        "unapproved_integration_count": record.get(
+            "unapproved_integration_count"
+        ),
+        "connector_count": record.get(
+            "connector_count"
+        ),
+        "external_domain_count": record.get(
+            "external_domain_count"
+        ),
+        "changes_last_24h": record.get(
+            "changes_last_24h"
+        ),
+        "evidence": record.get("evidence", []),
+        "observed_at": observed_at,
+        "ml_result": ml["result"],
+    }
+
+    request = urllib.request.Request(
+        (
+            f"{GOVERNANCE_API_URL}"
+            "/enterprise-discovery/handoff"
+        ),
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(
+            request,
+            timeout=5,
+        ) as response:
+            application = json.loads(
+                response.read().decode()
+            )
+
+        return {
+            "status": "handed_off",
+            "application": application,
         }
 
     except Exception as exc:
@@ -361,8 +458,25 @@ def create_discovery(payload: DiscoveryEvent):
 
     ml = analyze_with_ml(record)
 
+    governance_handoff = {
+        "status": "not_ready",
+    }
+
     if ml["status"] == "assessed":
-        handoff_status = "ml_assessed"
+        governance_handoff = handoff_to_governance(
+            record,
+            ml,
+        )
+
+        if (
+            governance_handoff["status"]
+            == "handed_off"
+        ):
+            handoff_status = (
+                "governance_handed_off"
+            )
+        else:
+            handoff_status = "governance_error"
 
     elif ml["status"] == "error":
         handoff_status = "ml_error"
@@ -487,5 +601,6 @@ def create_discovery(payload: DiscoveryEvent):
         connection.commit()
 
     stored["ml"] = ml
+    stored["governance_handoff"] = governance_handoff
 
     return stored
