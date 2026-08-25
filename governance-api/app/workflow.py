@@ -17,13 +17,35 @@ from .policy import evaluate_and_persist
 from .training import assign_required_training
 
 
-def determine_outcome(assessment, policy):
+def determine_outcome(
+    assessment,
+    policy,
+    application,
+):
     if not policy["allowed"]:
         return {
             "outcome": "BLOCK",
             "status": "blocked",
             "required_role": "Security/GRC Reviewer",
             "reasons": policy["reasons"],
+        }
+
+    if (
+        application.get("ml_anomaly_status")
+        == "assessed"
+        and application.get("ml_anomalous") is True
+    ):
+        return {
+            "outcome": "SECURITY_REVIEW",
+            "status": "pending_review",
+            "required_role": "Security/GRC Reviewer",
+            "reasons": [
+                (
+                    "AI anomaly assessment requires "
+                    "security/GRC review; AI is advisory "
+                    "and does not override policy."
+                )
+            ],
         }
 
     risk_level = assessment["level"].lower()
@@ -78,9 +100,24 @@ def run_governance_workflow(application_id: UUID):
             action=policy["action"]
         ).inc()
 
+        with get_connection() as connection:
+            application = connection.execute(
+                """
+                SELECT
+                    ml_anomaly_status,
+                    ml_anomalous,
+                    ml_decision_score,
+                    ml_model_version
+                FROM applications
+                WHERE id = %s;
+                """,
+                (application_id,),
+            ).fetchone()
+
         governance = determine_outcome(
             assessment,
             policy,
+            application or {},
         )
 
         governance_id = uuid4()
