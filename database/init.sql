@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS applications (
     data_fields TEXT,
     connector_metadata TEXT,
 
+    workflow_security_metadata JSONB,
+
     ml_classification_status VARCHAR(30) NOT NULL DEFAULT 'not_assessed',
     ml_suggested_classification VARCHAR(50),
     ml_classification_confidence DOUBLE PRECISION,

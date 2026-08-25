@@ -47,13 +47,22 @@ def scan_and_persist(application_id: UUID):
         )
     ]
 
-    if missing_fields:
+    workflow_observed = (
+        application[
+            "workflow_security_metadata"
+        ]
+        is not None
+    )
+
+    if missing_fields and not workflow_observed:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "message": (
-                    "Security scan requires complete "
-                    "observed integration metadata."
+                    "Security scan requires either "
+                    "trusted workflow evidence or "
+                    "complete observed integration "
+                    "metadata."
                 ),
                 "missing_fields": missing_fields,
             },
@@ -84,6 +93,9 @@ def scan_and_persist(application_id: UUID):
         ),
         "connector_metadata": (
             application["connector_metadata"]
+        ),
+        "workflow_security_metadata": (
+            application["workflow_security_metadata"]
         ),
     }
 

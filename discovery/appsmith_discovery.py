@@ -101,6 +101,246 @@ def get_applications(
     return payload.get("data", [])
 
 
+SENSITIVE_HEADER_NAMES = {
+    "authorization",
+    "x-api-key",
+    "api-key",
+    "token",
+    "access-token",
+}
+
+
+def _count_widgets(node):
+    if not isinstance(node, dict):
+        return 0
+
+    total = 0
+
+    for child in node.get("children", []):
+        if not isinstance(child, dict):
+            continue
+
+        total += 1
+        total += _count_widgets(child)
+
+    return total
+
+
+def collect_workflow_security_metadata(
+    client: httpx.Client,
+    application: dict,
+):
+    """Collect sanitized Appsmith workflow security evidence.
+
+    Only aggregate security counts are returned. Raw URLs,
+    request bodies, header values, bindings, tokens, and
+    credentials are never returned.
+    """
+
+    metadata = {
+        "page_count": 0,
+        "widget_count": 0,
+        "action_count": 0,
+        "api_action_count": 0,
+        "dynamic_binding_count": 0,
+        "invalid_action_count": 0,
+        "http_action_count": 0,
+        "https_action_count": 0,
+        "sensitive_header_action_count": 0,
+    }
+
+    pages = application.get("pages", [])
+    metadata["page_count"] = len(pages)
+
+    for page in pages:
+        page_id = page["id"]
+
+        page_response = client.get(
+            (
+                f"{APPSMITH_BASE_URL}"
+                f"/api/v1/pages/{page_id}"
+            )
+        )
+        page_response.raise_for_status()
+
+        page_data = (
+            page_response
+            .json()
+            .get("data", {})
+        )
+
+        for layout in page_data.get(
+            "layouts",
+            [],
+        ):
+            metadata["widget_count"] += (
+                _count_widgets(
+                    layout.get("dsl", {})
+                )
+            )
+
+        action_response = client.get(
+            (
+                f"{APPSMITH_BASE_URL}"
+                "/api/v1/actions"
+            ),
+            params={
+                "pageId": page_id,
+            },
+        )
+        action_response.raise_for_status()
+
+        actions = (
+            action_response
+            .json()
+            .get("data", [])
+        )
+
+        for action in actions:
+            metadata["action_count"] += 1
+
+            if action.get("pluginType") == "API":
+                metadata[
+                    "api_action_count"
+                ] += 1
+
+            metadata[
+                "dynamic_binding_count"
+            ] += len(
+                action.get(
+                    "dynamicBindingPathList",
+                    [],
+                )
+            )
+
+            if action.get("isValid") is False:
+                metadata[
+                    "invalid_action_count"
+                ] += 1
+
+            datasource = action.get(
+                "datasource",
+                {},
+            )
+
+            datasource_config = (
+                datasource.get(
+                    "datasourceConfiguration"
+                )
+                if isinstance(
+                    datasource,
+                    dict,
+                )
+                else None
+            )
+
+            raw_url = None
+
+            if isinstance(
+                datasource_config,
+                dict,
+            ):
+                for key in (
+                    "url",
+                    "endpoint",
+                    "host",
+                ):
+                    value = (
+                        datasource_config
+                        .get(key)
+                    )
+
+                    if (
+                        isinstance(value, str)
+                        and value
+                    ):
+                        raw_url = value
+                        break
+
+            if isinstance(raw_url, str):
+                normalized_url = (
+                    raw_url
+                    .strip()
+                    .lower()
+                )
+
+                if normalized_url.startswith(
+                    "http://"
+                ):
+                    metadata[
+                        "http_action_count"
+                    ] += 1
+
+                elif normalized_url.startswith(
+                    "https://"
+                ):
+                    metadata[
+                        "https_action_count"
+                    ] += 1
+
+            config = action.get(
+                "actionConfiguration",
+                {},
+            )
+
+            headers = (
+                config.get("headers", [])
+                if isinstance(config, dict)
+                else []
+            )
+
+            sensitive_header = False
+
+            if isinstance(headers, list):
+                for header in headers:
+                    if not isinstance(
+                        header,
+                        dict,
+                    ):
+                        continue
+
+                    name = (
+                        header.get("key")
+                        or header.get("name")
+                    )
+
+                    if (
+                        isinstance(name, str)
+                        and name.lower()
+                        in SENSITIVE_HEADER_NAMES
+                    ):
+                        sensitive_header = True
+                        break
+
+            if sensitive_header:
+                metadata[
+                    "sensitive_header_action_count"
+                ] += 1
+
+    return metadata
+
+
+def send_workflow_security_metadata(
+    application_id: str,
+    metadata: dict,
+):
+    """Send sanitized observed workflow evidence to Governance."""
+
+    response = httpx.post(
+        (
+            f"{GOVERNANCE_API_URL}"
+            f"/applications/{application_id}"
+            "/observed-workflow-security"
+        ),
+        json=metadata,
+        timeout=10.0,
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
+
 def get_inventory():
     response = httpx.get(
         f"{GOVERNANCE_API_URL}/applications",
@@ -297,7 +537,14 @@ def trigger_security_scan(application):
         )
     ]
 
-    if missing:
+    workflow_observed = (
+        application.get(
+            "workflow_security_metadata"
+        )
+        is not None
+    )
+
+    if missing and not workflow_observed:
         print(
             f"[SCAN-PENDING] {name}: "
             "security metadata incomplete: "
@@ -305,6 +552,16 @@ def trigger_security_scan(application):
             flush=True,
         )
         return
+
+    if missing and workflow_observed:
+        print(
+            f"[SCAN-PARTIAL] {name}: "
+            "workflow evidence available; "
+            "integration-dependent rules "
+            "not evaluable: "
+            + ", ".join(missing),
+            flush=True,
+        )
 
     try:
         response = httpx.post(
@@ -417,6 +674,33 @@ def run_discovery_cycle():
                         )
 
                 if record is not None:
+                    workflow_metadata = (
+                        collect_workflow_security_metadata(
+                            client,
+                            application,
+                        )
+                    )
+
+                    record = (
+                        send_workflow_security_metadata(
+                            record["id"],
+                            workflow_metadata,
+                        )
+                    )
+
+                    print(
+                        f"[WORKFLOW-OBSERVED] {name}: "
+                        f"pages="
+                        f"{workflow_metadata['page_count']} "
+                        f"widgets="
+                        f"{workflow_metadata['widget_count']} "
+                        f"actions="
+                        f"{workflow_metadata['action_count']} "
+                        f"http_actions="
+                        f"{workflow_metadata['http_action_count']}",
+                        flush=True,
+                    )
+
                     run_ai_pipeline(record)
 
         print(

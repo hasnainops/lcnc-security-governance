@@ -460,3 +460,22 @@ def enterprise_discovery_handoff(
     return persist_enterprise_discovery_handoff(
         payload.model_dump()
     )
+
+
+from .workflow_evidence import (
+    WorkflowSecurityMetadata,
+    persist_workflow_security_metadata,
+)
+
+
+@app.post(
+    "/applications/{application_id}/observed-workflow-security"
+)
+def ingest_observed_workflow_security(
+    application_id: UUID,
+    payload: WorkflowSecurityMetadata,
+):
+    return persist_workflow_security_metadata(
+        application_id,
+        payload,
+    )

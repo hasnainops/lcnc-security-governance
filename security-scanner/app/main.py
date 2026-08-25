@@ -18,16 +18,19 @@ class ScanInput(BaseModel):
 
     internet_exposed: bool = False
 
-    external_integration_count: int = Field(
-        ge=0
+    external_integration_count: int | None = Field(
+        default=None,
+        ge=0,
     )
 
-    unapproved_integration_count: int = Field(
-        ge=0
+    unapproved_integration_count: int | None = Field(
+        default=None,
+        ge=0,
     )
 
     credential_type: str | None = None
     connector_metadata: str | None = None
+    workflow_security_metadata: dict | None = None
 
 
 @app.get("/health")

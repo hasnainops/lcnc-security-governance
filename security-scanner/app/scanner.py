@@ -48,18 +48,24 @@ def scan_application(payload):
         or ""
     )
 
-    external_count = int(
-        payload.get(
-            "external_integration_count"
-        )
-        or 0
+    raw_external_count = payload.get(
+        "external_integration_count"
     )
 
-    unapproved_count = int(
-        payload.get(
-            "unapproved_integration_count"
-        )
-        or 0
+    external_count = (
+        int(raw_external_count)
+        if raw_external_count is not None
+        else None
+    )
+
+    raw_unapproved_count = payload.get(
+        "unapproved_integration_count"
+    )
+
+    unapproved_count = (
+        int(raw_unapproved_count)
+        if raw_unapproved_count is not None
+        else None
     )
 
     if registration_status != "registered":
@@ -95,7 +101,10 @@ def scan_application(payload):
             )
         )
 
-    if unapproved_count > 0:
+    if (
+        unapproved_count is not None
+        and unapproved_count > 0
+    ):
         findings.append(
             finding(
                 "SEC-004",
@@ -155,6 +164,7 @@ def scan_application(payload):
     if (
         classification
         in {"confidential", "restricted"}
+        and external_count is not None
         and external_count > 0
     ):
         findings.append(
@@ -168,6 +178,83 @@ def scan_application(payload):
                     f"{external_count}"
                 ),
                 "Require DLP and policy validation before allowing data egress.",
+            )
+        )
+
+    workflow = (
+        payload.get("workflow_security_metadata")
+        or {}
+    )
+
+    http_action_count = int(
+        workflow.get("http_action_count")
+        or 0
+    )
+
+    invalid_action_count = int(
+        workflow.get("invalid_action_count")
+        or 0
+    )
+
+    sensitive_header_action_count = int(
+        workflow.get(
+            "sensitive_header_action_count"
+        )
+        or 0
+    )
+
+    if http_action_count > 0:
+        findings.append(
+            finding(
+                "SEC-009",
+                "Workflow contains unencrypted HTTP actions",
+                "high",
+                (
+                    "http_action_count="
+                    f"{http_action_count}"
+                ),
+                (
+                    "Require HTTPS/TLS for API actions "
+                    "before production use."
+                ),
+            )
+        )
+
+    if invalid_action_count > 0:
+        findings.append(
+            finding(
+                "SEC-010",
+                "Invalid workflow actions detected",
+                "medium",
+                (
+                    "invalid_action_count="
+                    f"{invalid_action_count}"
+                ),
+                (
+                    "Repair or remove invalid workflow "
+                    "actions before deployment."
+                ),
+            )
+        )
+
+    if sensitive_header_action_count > 0:
+        findings.append(
+            finding(
+                "SEC-011",
+                (
+                    "Sensitive authentication header "
+                    "usage detected"
+                ),
+                "medium",
+                (
+                    "sensitive_header_action_count="
+                    f"{sensitive_header_action_count}"
+                ),
+                (
+                    "Validate that authentication values "
+                    "come from managed secret storage and "
+                    "are never embedded in workflow code."
+                ),
             )
         )
 
