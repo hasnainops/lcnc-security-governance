@@ -33,6 +33,14 @@ class TransferEvaluationRequest(BaseModel):
     )
 
 
+class ControlledEgressRequest(
+    TransferEvaluationRequest
+):
+    """Outbound request that must pass DLP policy first."""
+
+    method: Literal["POST"] = "POST"
+
+
 def evaluate_and_persist(
     application_id: UUID,
     payload: TransferEvaluationRequest,
@@ -217,4 +225,71 @@ def evaluate_and_persist(
         "reasons": result["reasons"],
         "dlp": result["dlp"],
         "evaluated_at": persisted["evaluated_at"],
+    }
+
+def execute_controlled_egress(
+    application_id: UUID,
+    payload: ControlledEgressRequest,
+):
+    """Evaluate first; execute outbound traffic only on ALLOW."""
+
+    evaluation_payload = TransferEvaluationRequest(
+        destination_url=payload.destination_url,
+        destination_trust=payload.destination_trust,
+        content=payload.content,
+        field_names=payload.field_names,
+    )
+
+    evaluation = evaluate_and_persist(
+        application_id,
+        evaluation_payload,
+    )
+
+    if not evaluation["allowed"]:
+        return {
+            **evaluation,
+            "executed": False,
+            "upstream_status_code": None,
+        }
+
+    try:
+        response = httpx.request(
+            method=payload.method,
+            url=payload.destination_url,
+            content=payload.content,
+            timeout=15.0,
+            follow_redirects=False,
+        )
+
+    except (
+        httpx.ConnectError,
+        httpx.TimeoutException,
+    ) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "decision": "allow",
+                "executed": False,
+                "reason": (
+                    "controlled_egress_destination_unavailable"
+                ),
+            },
+        ) from exc
+
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "decision": "allow",
+                "executed": False,
+                "reason": (
+                    "controlled_egress_request_failed"
+                ),
+            },
+        ) from exc
+
+    return {
+        **evaluation,
+        "executed": True,
+        "upstream_status_code": response.status_code,
     }

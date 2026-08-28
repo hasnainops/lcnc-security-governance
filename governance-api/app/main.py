@@ -304,8 +304,10 @@ def scan_application_security(application_id: UUID):
 
 
 from .integration import (
+    ControlledEgressRequest,
     TransferEvaluationRequest,
     evaluate_and_persist as evaluate_transfer_and_persist,
+    execute_controlled_egress,
 )
 
 
@@ -317,6 +319,19 @@ def evaluate_application_transfer(
     payload: TransferEvaluationRequest,
 ):
     return evaluate_transfer_and_persist(
+        application_id,
+        payload,
+    )
+
+
+@app.post(
+    "/applications/{application_id}/controlled-egress"
+)
+def execute_application_controlled_egress(
+    application_id: UUID,
+    payload: ControlledEgressRequest,
+):
+    return execute_controlled_egress(
         application_id,
         payload,
     )
