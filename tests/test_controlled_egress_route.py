@@ -63,9 +63,6 @@ def test_controlled_egress_route_returns_block_without_execution(
         ),
         json={
             "destination_url": destination,
-            "destination_trust": (
-                "unapproved_external"
-            ),
             "content": "restricted test payload",
             "field_names": ["ssn"],
             "method": "POST",

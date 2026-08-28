@@ -1,11 +1,13 @@
 import os
+import socket
+from ipaddress import ip_address
 from typing import Literal
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import httpx
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from psycopg.types.json import Jsonb
 
 from .database import get_connection
@@ -18,13 +20,9 @@ INTEGRATION_GATEWAY_URL = os.getenv(
 
 
 class TransferEvaluationRequest(BaseModel):
-    destination_url: str
+    model_config = ConfigDict(extra="forbid")
 
-    destination_trust: Literal[
-        "internal",
-        "approved_external",
-        "unapproved_external",
-    ]
+    destination_url: str
 
     content: str = ""
 
@@ -39,6 +37,118 @@ class ControlledEgressRequest(
     """Outbound request that must pass DLP policy first."""
 
     method: Literal["POST"] = "POST"
+
+
+def _approved_external_hosts():
+    """Return the server-owned egress destination allowlist."""
+
+    return {
+        host.strip().lower().rstrip(".")
+        for host in os.getenv(
+            "CONTROLLED_EGRESS_APPROVED_HOSTS",
+            "",
+        ).split(",")
+        if host.strip()
+    }
+
+
+def _classify_destination(destination_url):
+    """Validate a target and derive destination trust server-side."""
+
+    parsed = urlparse(destination_url)
+
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "destination_url must be a valid "
+                "HTTP or HTTPS URL"
+            ),
+        )
+
+    if parsed.username or parsed.password:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "destination_url must not contain "
+                "embedded credentials"
+            ),
+        )
+
+    hostname = parsed.hostname.lower().rstrip(".")
+
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "destination_url contains an invalid port"
+            ),
+        ) from exc
+
+    if port is None:
+        port = (
+            443
+            if parsed.scheme == "https"
+            else 80
+        )
+
+    try:
+        resolved = socket.getaddrinfo(
+            hostname,
+            port,
+            type=socket.SOCK_STREAM,
+        )
+    except socket.gaierror as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "decision": "block",
+                "reason": (
+                    "destination_resolution_failed"
+                ),
+            },
+        ) from exc
+
+    addresses = {
+        ip_address(
+            record[4][0].split("%", 1)[0]
+        )
+        for record in resolved
+    }
+
+    if (
+        not addresses
+        or any(
+            not address.is_global
+            for address in addresses
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "decision": "block",
+                "reason": "unsafe_destination",
+                "message": (
+                    "Controlled egress cannot target "
+                    "loopback, private, link-local, "
+                    "reserved, or other non-public "
+                    "addresses."
+                ),
+            },
+        )
+
+    destination_trust = (
+        "approved_external"
+        if hostname in _approved_external_hosts()
+        else "unapproved_external"
+    )
+
+    return parsed, destination_trust
 
 
 def evaluate_and_persist(
@@ -61,29 +171,17 @@ def evaluate_and_persist(
             detail="Application not found",
         )
 
-    parsed = urlparse(
-        payload.destination_url
-    )
-
-    if (
-        parsed.scheme not in {"http", "https"}
-        or not parsed.hostname
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "destination_url must be a valid "
-                "HTTP or HTTPS URL"
-            ),
+    parsed, destination_trust = (
+        _classify_destination(
+            payload.destination_url
         )
+    )
 
     gateway_payload = {
         "application_id": str(application_id),
         "application_name": application["name"],
         "destination_url": payload.destination_url,
-        "destination_trust": (
-            payload.destination_trust
-        ),
+        "destination_trust": destination_trust,
         "declared_classification": (
             application["data_classification"]
         ),
@@ -182,7 +280,7 @@ def evaluate_and_persist(
                 application_id,
                 parsed.scheme,
                 parsed.hostname,
-                payload.destination_trust,
+                destination_trust,
                 application["data_classification"],
                 result["effective_sensitivity"],
                 result["decision"],
@@ -212,7 +310,7 @@ def evaluate_and_persist(
         "destination": {
             "scheme": parsed.scheme,
             "host": parsed.hostname,
-            "trust": payload.destination_trust,
+            "trust": destination_trust,
         },
         "declared_classification": (
             application["data_classification"]
@@ -235,7 +333,6 @@ def execute_controlled_egress(
 
     evaluation_payload = TransferEvaluationRequest(
         destination_url=payload.destination_url,
-        destination_trust=payload.destination_trust,
         content=payload.content,
         field_names=payload.field_names,
     )

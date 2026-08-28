@@ -85,7 +85,6 @@ def test_blocked_transfer_never_executes_outbound_request(
         destination_url=(
             "https://example.invalid/receive"
         ),
-        destination_trust="unapproved_external",
         content="SSN 123-45-6789",
         field_names=["ssn"],
     )
@@ -178,7 +177,6 @@ def test_allowed_transfer_executes_exactly_one_outbound_request(
         destination_url=(
             "https://example.invalid/receive"
         ),
-        destination_trust="approved_external",
         content="non-sensitive payload",
         field_names=["message"],
     )
