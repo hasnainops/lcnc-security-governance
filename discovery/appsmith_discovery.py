@@ -11,8 +11,8 @@ APPSMITH_BASE_URL = os.getenv(
     "http://appsmith",
 )
 
-APPSMITH_USER = os.environ["APPSMITH_USER"]
-APPSMITH_PASSWORD = os.environ["APPSMITH_PASSWORD"]
+APPSMITH_USER = os.getenv("APPSMITH_USER")
+APPSMITH_PASSWORD = os.getenv("APPSMITH_PASSWORD")
 
 GOVERNANCE_API_URL = os.getenv(
     "GOVERNANCE_API_URL",
@@ -42,6 +42,11 @@ CLASSIFICATION_REQUIRED_FIELDS = [
 
 
 def login(client: httpx.Client):
+    if not APPSMITH_USER or not APPSMITH_PASSWORD:
+        raise RuntimeError(
+            "APPSMITH_USER and APPSMITH_PASSWORD are required for Appsmith login"
+        )
+
     response = client.post(
         f"{APPSMITH_BASE_URL}/api/v1/login",
         headers={"X-Requested-By": "Appsmith"},
