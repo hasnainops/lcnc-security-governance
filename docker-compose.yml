@@ -186,9 +186,43 @@ services:
     restart: unless-stopped
 
   governance-api:
+    image: caddy:2.11.4-alpine
+    container_name: lcnc-governance-api
+    command:
+      - caddy
+      - run
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./governance-api/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - appsmith_restricted
+      - default
+    depends_on:
+      governance-api-a:
+        condition: service_healthy
+      governance-api-b:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8000/health > /dev/null || exit 1"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  governance-api-a:
     build:
       context: ./governance-api
-    container_name: lcnc-governance-api
+    container_name: lcnc-governance-api-a
     environment:
       RISK_ENGINE_URL: http://risk-engine:8001
       VAULT_ADDR: http://vault:8200
@@ -206,10 +240,65 @@ services:
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro
-    ports:
-      - "127.0.0.1:8000:8000"
+    expose:
+      - "8000"
     networks:
-      - appsmith_restricted
+      - default
+    depends_on:
+      risk-engine:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+      opa:
+        condition: service_started
+      ml-analytics:
+        condition: service_healthy
+      security-scanner:
+        condition: service_healthy
+      integration-gateway:
+        condition: service_healthy
+      governance-automation:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  governance-api-b:
+    build:
+      context: ./governance-api
+    container_name: lcnc-governance-api-b
+    environment:
+      RISK_ENGINE_URL: http://risk-engine:8001
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
+      VAULT_DB_ROLE: governance-api
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
+      OPA_URL: http://opa:8181
+      ML_ANALYTICS_URL: http://ml-analytics:8002
+      SECURITY_SCANNER_URL: http://security-scanner:8003
+      INTEGRATION_GATEWAY_URL: http://integration-gateway:8005
+      GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
+    volumes:
+      - ./compliance:/compliance:ro
+    expose:
+      - "8000"
+    networks:
       - default
     depends_on:
       risk-engine:

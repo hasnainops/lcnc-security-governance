@@ -154,12 +154,13 @@ chmod 600 .env
 unset VAULT_ROLE_ID
 unset VAULT_SECRET_ID
 
-echo "==> Recreating Governance API with fresh AppRole credentials..."
+echo "==> Recreating Governance API replicas with fresh AppRole credentials..."
 
 docker compose up -d \
   --force-recreate \
   --no-deps \
-  governance-api
+  governance-api-a \
+  governance-api-b
 
 echo
 echo "Vault bootstrap completed."
