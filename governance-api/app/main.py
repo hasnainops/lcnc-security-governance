@@ -196,6 +196,7 @@ def update_application(
                 ml_decision_score = NULL,
                 ml_model_version = NULL,
                 ml_assessed_at = NULL,
+                shadow_it_candidate = FALSE,
                 ml_classification_status = 'stale',
                 ml_suggested_classification = NULL,
                 ml_classification_confidence = NULL,

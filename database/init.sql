@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS applications (
     ml_model_version VARCHAR(100),
     ml_assessed_at TIMESTAMPTZ,
 
+    shadow_it_candidate BOOLEAN NOT NULL DEFAULT FALSE,
+
     data_fields TEXT,
     connector_metadata TEXT,
 

@@ -262,3 +262,77 @@ def test_same_external_id_different_platform_fails_closed(
 
     assert exc.value.status_code == 409
     assert "platform" in str(exc.value.detail).lower()
+
+def test_anomalous_unknown_discovery_is_shadow_it_candidate(
+    monkeypatch,
+):
+    connection = FakeConnection()
+
+    monkeypatch.setattr(
+        handoff,
+        "get_connection",
+        lambda: FakeConnectionContext(connection),
+    )
+
+    result = handoff.persist_enterprise_discovery_handoff(
+        make_handoff_payload()
+    )
+
+    assert result["shadow_it_candidate"] is True
+    assert result["shadow_it_candidate_basis"] == {
+        "enterprise_discovery": True,
+        "ml_anomalous": True,
+        "authorization_status": "unknown",
+    }
+
+    ml_updates = [
+        params
+        for query, params in connection.calls
+        if (
+            "UPDATE applications" in query
+            and "shadow_it_candidate" in query
+        )
+    ]
+
+    assert len(ml_updates) == 1
+    assert ml_updates[0][-2] is True
+
+
+def test_authorized_anomalous_discovery_is_not_shadow_it_candidate(
+    monkeypatch,
+):
+    connection = FakeConnection()
+    payload = make_handoff_payload()
+    payload["authorization_status"] = "authorized"
+
+    monkeypatch.setattr(
+        handoff,
+        "get_connection",
+        lambda: FakeConnectionContext(connection),
+    )
+
+    result = handoff.persist_enterprise_discovery_handoff(payload)
+
+    assert result["shadow_it_candidate"] is False
+    assert (
+        result["shadow_it_candidate_basis"]["authorization_status"]
+        == "authorized"
+    )
+
+
+def test_non_anomalous_discovery_is_not_shadow_it_candidate(
+    monkeypatch,
+):
+    connection = FakeConnection()
+    payload = make_handoff_payload()
+    payload["ml_result"]["anomalous"] = False
+
+    monkeypatch.setattr(
+        handoff,
+        "get_connection",
+        lambda: FakeConnectionContext(connection),
+    )
+
+    result = handoff.persist_enterprise_discovery_handoff(payload)
+
+    assert result["shadow_it_candidate"] is False

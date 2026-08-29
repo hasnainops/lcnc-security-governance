@@ -74,6 +74,15 @@ def persist_enterprise_discovery_handoff(payload):
 
     ml_result = payload["ml_result"]
 
+    authorization_status = str(
+        payload.get("authorization_status") or "unknown"
+    ).strip().lower()
+
+    shadow_it_candidate = (
+        ml_result["anomalous"] is True
+        and authorization_status != "authorized"
+    )
+
     features = {
         feature: payload.get(feature)
         for feature in ML_FEATURES
@@ -279,6 +288,7 @@ def persist_enterprise_discovery_handoff(payload):
                 ml_decision_score = %s,
                 ml_model_version = %s,
                 ml_assessed_at = NOW(),
+                shadow_it_candidate = %s,
                 updated_at = NOW()
             WHERE id = %s
             RETURNING *;
@@ -287,6 +297,7 @@ def persist_enterprise_discovery_handoff(payload):
                 ml_result["anomalous"],
                 ml_result["raw_decision_score"],
                 ml_result["model_version"],
+                shadow_it_candidate,
                 application["id"],
             ),
         ).fetchone()
@@ -294,6 +305,12 @@ def persist_enterprise_discovery_handoff(payload):
     return {
         "application_id": updated_application["id"],
         "action": action,
+        "shadow_it_candidate": shadow_it_candidate,
+        "shadow_it_candidate_basis": {
+            "enterprise_discovery": True,
+            "ml_anomalous": ml_result["anomalous"],
+            "authorization_status": authorization_status,
+        },
         "ml": {
             "anomalous": ml_result["anomalous"],
             "decision_score": (
