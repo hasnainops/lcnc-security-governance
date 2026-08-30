@@ -172,7 +172,7 @@ Outputs:
 - anomaly decision
 - anomaly score
 - context signals
-- immutable assessment evidence
+- append-only historical assessment evidence
 
 ### AI-Assisted Classification
 

@@ -32,7 +32,7 @@ Status definitions:
 | AI/ML anomaly detection | Isolation Forest | `ml-analytics` | COMPLETE |
 | Behavior-based feature analysis | Nine application-behavior features | ML model implementation | COMPLETE |
 | Avoid governance-label leakage | Governance and risk outputs excluded from model features | ML feature design | COMPLETE |
-| Persist anomaly evidence | Immutable ML assessments | `ml_assessments` | COMPLETE |
+| Persist anomaly evidence | Append-only ML assessment history | `ml_assessments` | COMPLETE |
 | Production ML accuracy guarantee | Synthetic evaluation only | Model documentation | OUT OF SCOPE |
 
 Important limitation:
