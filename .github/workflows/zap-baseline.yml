@@ -35,9 +35,6 @@ jobs:
           docker run -d \
             --name governance-api-dast \
             -p 8000:8000 \
-            -e VAULT_ROLE_ID=dast-placeholder \
-            -e VAULT_SECRET_ID=dast-placeholder \
-            -e POSTGRES_DB=lcnc_governance \
             lcnc-governance-api-dast
 
       - name: Wait for API
