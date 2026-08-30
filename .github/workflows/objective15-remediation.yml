@@ -1,0 +1,206 @@
+name: Objective 15 Vulnerability Remediation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "security-scanner/**"
+      - ".github/workflows/objective15-remediation.yml"
+
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Run approved deployment and post-deployment re-scan"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_TAG: objective15-security-scanner:${{ github.sha }}
+
+jobs:
+  validate-remediation:
+    name: Validate Remediation
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          python -m pip install -r security-scanner/requirements.txt
+
+      - name: Run security scanner tests
+        env:
+          PYTHONPATH: security-scanner/tests
+        run: |
+          python -m pytest -q security-scanner/tests/test_scanner.py
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2.4.0
+        with:
+          version: "1.19.0"
+
+      - name: Run OPA policy tests
+        run: |
+          opa test policies -v
+
+      - name: Validate Docker Compose
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - name: Build remediation image
+        run: |
+          docker build             --pull             --tag "$IMAGE_TAG"             security-scanner
+
+      - name: Pre-deployment Trivy gate
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_TAG }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: objective15-predeploy-trivy.json
+          version: v0.73.0
+
+      - name: Preserve validated image
+        run: |
+          docker save "$IMAGE_TAG" | gzip > objective15-security-scanner.tar.gz
+          docker image inspect "$IMAGE_TAG" --format "{{.Id}}"             > objective15-image-id.txt
+
+      - name: Upload validated remediation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: objective15-validated-image-${{ github.sha }}
+          path: |
+            objective15-security-scanner.tar.gz
+            objective15-image-id.txt
+            objective15-predeploy-trivy.json
+          retention-days: 7
+
+  approved-deployment:
+    name: Approved Deployment And Re-Scan
+    needs:
+      - validate-remediation
+    if: ${{ github.event_name == "workflow_dispatch" && inputs.deploy }}
+    runs-on: ubuntu-24.04
+
+    # Configure this GitHub Environment with required reviewers.
+    environment:
+      name: security-remediation
+
+    steps:
+      - name: Download validated remediation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: objective15-validated-image-${{ github.sha }}
+
+      - name: Load exact validated image
+        run: |
+          gunzip -c objective15-security-scanner.tar.gz | docker load
+
+          VALIDATED_IMAGE_ID=$(cat objective15-image-id.txt)
+          LOADED_IMAGE_ID=$(docker image inspect "$IMAGE_TAG" --format "{{.Id}}")
+
+          echo "Validated image: $VALIDATED_IMAGE_ID"
+          echo "Loaded image:    $LOADED_IMAGE_ID"
+
+          test "$VALIDATED_IMAGE_ID" = "$LOADED_IMAGE_ID"
+
+      - name: Deploy approved image
+        run: |
+          docker run -d \
+            --name objective15-security-scanner \
+            --health-cmd='python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8003/health\")"' \
+            --health-interval=2s \
+            --health-timeout=2s \
+            --health-retries=15 \
+            "$IMAGE_TAG"
+
+      - name: Verify deployed image and health
+        run: |
+          VALIDATED_IMAGE_ID=$(cat objective15-image-id.txt)
+          RUNNING_IMAGE_ID=$(docker inspect objective15-security-scanner \
+            --format '{{.Image}}')
+
+          echo "Approved image: $VALIDATED_IMAGE_ID"
+          echo "Running image:  $RUNNING_IMAGE_ID"
+
+          test "$VALIDATED_IMAGE_ID" = "$RUNNING_IMAGE_ID"
+
+          for attempt in $(seq 1 20); do
+            HEALTH=$(docker inspect objective15-security-scanner \
+              --format '{{.State.Health.Status}}')
+
+            echo "Attempt $attempt: $HEALTH"
+
+            if [ "$HEALTH" = "healthy" ]; then
+              break
+            fi
+
+            sleep 2
+          done
+
+          test "$(docker inspect objective15-security-scanner \
+            --format '{{.State.Health.Status}}')" = "healthy"
+
+          docker exec objective15-security-scanner \
+            python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8003/health").read().decode())'
+
+          echo "RUNNING_IMAGE_ID=$RUNNING_IMAGE_ID" >> "$GITHUB_ENV"
+      - name: Post-deployment Trivy re-scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.RUNNING_IMAGE_ID }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: objective15-postdeploy-trivy.json
+          version: v0.73.0
+
+      - name: Create remediation evidence
+        run: |
+          {
+            echo "objective=15"
+            echo "service=security-scanner"
+            echo "workflow_sha=${GITHUB_SHA}"
+            echo "approved_environment=security-remediation"
+            echo "validated_image=$(cat objective15-image-id.txt)"
+            echo "deployed_image=${RUNNING_IMAGE_ID}"
+            echo "runtime_health=healthy"
+            echo "predeployment_trivy=PASS"
+            echo "postdeployment_trivy=PASS"
+            echo "completed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > objective15-remediation-evidence.txt
+
+          cat objective15-remediation-evidence.txt
+
+      - name: Upload final remediation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: objective15-remediation-evidence-${{ github.sha }}
+          path: |
+            objective15-remediation-evidence.txt
+            objective15-postdeploy-trivy.json
+          retention-days: 90

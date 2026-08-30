@@ -33,6 +33,7 @@
 | ZAP baseline workflow | GitHub Actions workflow | Runtime DAST configuration | Git / CI when executed |
 | Trivy scanning | GitHub Actions | Vulnerability, secret and misconfiguration validation | CI history |
 | Dependabot configuration | `.github/dependabot.yml` | Dependency/container update lifecycle | Git |
+| Objective 15 vulnerability remediation | `compliance/evidence/objective15-vulnerability-remediation.md` | Detect, patch, validate, approve, redeploy and re-scan evidence | Git + runtime proof |
 | Python regression tests | `pytest` | Application/control validation | Git + test output |
 | OPA policy tests | `policies/*_test.rego` | Governance/access policy validation | Git + test output |
 | Git commit history | Git/GitHub | Change traceability | Git |
