@@ -181,16 +181,24 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 
 ## 12. Secure Credential Handling
 
+**Exam Objective 14 assessment: COMPLETE for the local MVP.**
+
 | Requirement | Implementation | Evidence | Status |
 |---|---|---|---|
-| Runtime secrets outside Git | `.env` excluded | `.gitignore` | COMPLETE |
+| Runtime secrets outside Git | `.env` and `.runtime-secrets/` excluded | `.gitignore` | COMPLETE |
 | Safe configuration template | `.env.example` placeholders | Repository | COMPLETE |
-| Services consume environment variables | Docker Compose/application code | Configuration | COMPLETE |
+| Non-sensitive runtime configuration | Docker Compose/environment variables | Configuration | COMPLETE |
+| Sensitive bootstrap-secret delivery | AppRole SecretIDs delivered through protected read-only files using `VAULT_SECRET_ID_FILE` | Docker Compose + `.runtime-secrets/` | COMPLETE |
 | Repository secret scanning | CI security validation | GitHub Actions | COMPLETE |
-| Centralized secrets manager | Vault provides centralized runtime secret access | Vault service | COMPLETE |
-| Workload authentication to Vault | Governance API authenticates through AppRole | Vault AppRole configuration | COMPLETE |
-| Dynamic database credentials | Vault PostgreSQL secrets engine issues time-limited credentials | Governance API runtime connection | COMPLETE |
-| Production Vault hardening | Local MVP uses Vault development-mode configuration | Production architecture boundary | PARTIAL |
+| Centralized secrets manager | Vault provides centralized runtime secret services | Vault service | COMPLETE |
+| Dedicated workload authentication | Governance API, Enterprise Discovery, Governance Automation and Appsmith Discovery use separate AppRoles/policies | Vault AppRole configuration | COMPLETE |
+| Dynamic database credentials | Vault PostgreSQL secrets engine issues 15-minute credentials to three database workloads | Runtime least-privilege proof | COMPLETE |
+| Database least privilege | Table-level grants and cross-role Vault isolation were validated | Runtime privilege tests | COMPLETE |
+| Managed Appsmith integration credential | Appsmith discovery credential stored in scoped Vault KV v2 path | `secret/integrations/appsmith` | COMPLETE |
+| Vault token lifecycle | Renewable service-token behavior validated | Runtime renewal proof | COMPLETE |
+| Credential revocation and recovery | Active Appsmith Discovery SecretID destroyed, old login rejected, fresh SecretID issued and service recovered | Objective 14 runtime proof | COMPLETE |
+| Objective 14 evidence | End-to-end implementation and runtime validation | `compliance/evidence/objective14-secrets-management.md` | COMPLETE |
+| Production Vault hardening | TLS, persistent storage, HA and operational unseal/recovery remain production extensions | Production architecture boundary | OUT OF SCOPE |
 
 ---
 
@@ -321,7 +329,7 @@ The following are deliberately outside the local MVP:
 
 - enterprise SSO
 - MFA
-- workload identity
+- enterprise/cloud-native workload identity federation (for example cloud IAM or Kubernetes-native identity)
 - mutual TLS
 - production-hardened Vault deployment with TLS, persistent storage, HA and operational unseal/recovery controls
 - tamper-evident audit storage
@@ -356,6 +364,7 @@ Discovery
 → Transfer enforcement
 → Dynamic compliance
 → Citizen guidance
+→ Secure credential handling
 → Audit evidence
 
 ## AI Capability

@@ -3,6 +3,7 @@ import os
 import urllib.request
 
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 import psycopg
@@ -12,6 +13,38 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
+if __package__:
+    from .database import get_connection
+else:
+    # Test compatibility: some regression tests load this
+    # module directly from its file path without package context.
+    import importlib.util
+
+    database_path = Path(__file__).with_name("database.py")
+
+    database_spec = importlib.util.spec_from_file_location(
+        "enterprise_discovery_database",
+        database_path,
+    )
+
+    if (
+        database_spec is None
+        or database_spec.loader is None
+    ):
+        raise ImportError(
+            "Unable to load enterprise discovery database helper."
+        )
+
+    database_module = importlib.util.module_from_spec(
+        database_spec
+    )
+
+    database_spec.loader.exec_module(
+        database_module
+    )
+
+    get_connection = database_module.get_connection
+
 
 app = FastAPI(
     title="LCNC Enterprise Discovery",
@@ -19,7 +52,6 @@ app = FastAPI(
 )
 
 
-DATABASE_URL = os.environ["DATABASE_URL"]
 
 ML_ANALYTICS_URL = os.getenv(
     "ML_ANALYTICS_URL",
@@ -106,13 +138,6 @@ ML_FEATURES = [
     "external_domain_count",
     "changes_last_24h",
 ]
-
-
-def get_connection():
-    return psycopg.connect(
-        DATABASE_URL,
-        row_factory=dict_row,
-    )
 
 
 def analyze_with_ml(record: dict) -> dict:

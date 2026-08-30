@@ -38,7 +38,7 @@ def _cache_deadline(ttl_seconds: int):
 
 def _vault_config():
     role_id = os.getenv("VAULT_ROLE_ID")
-    secret_id = os.getenv("VAULT_SECRET_ID")
+    secret_id_file = os.getenv("VAULT_SECRET_ID_FILE")
     postgres_db = os.getenv("POSTGRES_DB")
 
     missing = []
@@ -46,8 +46,8 @@ def _vault_config():
     if not role_id:
         missing.append("VAULT_ROLE_ID")
 
-    if not secret_id:
-        missing.append("VAULT_SECRET_ID")
+    if not secret_id_file:
+        missing.append("VAULT_SECRET_ID_FILE")
 
     if not postgres_db:
         missing.append("POSTGRES_DB")
@@ -56,6 +56,23 @@ def _vault_config():
         raise RuntimeError(
             "Missing runtime database configuration: "
             + ", ".join(missing)
+        )
+
+    try:
+        with open(
+            secret_id_file,
+            "r",
+            encoding="utf-8",
+        ) as handle:
+            secret_id = handle.read().strip()
+    except OSError as exc:
+        raise RuntimeError(
+            "Unable to read Vault AppRole SecretID file."
+        ) from exc
+
+    if not secret_id:
+        raise RuntimeError(
+            "Vault AppRole SecretID file is empty."
         )
 
     return {

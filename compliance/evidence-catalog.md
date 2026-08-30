@@ -1,4 +1,4 @@
-# Governance Evidence Catalog — MVP V3
+# Governance Evidence Catalog — MVP V5
 
 | Evidence | Source | Purpose | Persistence |
 |---|---|---|---|
@@ -27,8 +27,10 @@
 | Governance Automation UI/API | `localhost:8007` | Approval, escalation and JIT visibility | Runtime |
 | Prometheus metrics | Prometheus | Operational telemetry | Time-series |
 | Grafana dashboard | Grafana | Operational visualization | Runtime + provisioned config |
-| Vault AppRole | Vault | Workload authentication evidence | Runtime configuration |
-| Vault dynamic PostgreSQL identity | Vault database secrets engine | Short-lived database credentials | Runtime |
+| Vault workload AppRoles | Vault | Dedicated workload authentication and policy isolation | Runtime configuration |
+| Vault dynamic PostgreSQL identities | Vault database secrets engine | 15-minute least-privilege database credentials | Runtime |
+| Vault-managed Appsmith integration credential | Vault KV v2 | Scoped integration credential storage without workload environment exposure | Runtime configuration |
+| Objective 14 secrets-management evidence | `compliance/evidence/objective14-secrets-management.md` | Dynamic credentials, least privilege, token renewal, SecretID revocation and recovery | Git + runtime proof |
 | SonarQube analysis | SonarQube | Static security/code-quality evidence | SonarQube |
 | ZAP baseline workflow | GitHub Actions workflow | Runtime DAST configuration | Git / CI when executed |
 | Trivy scanning | GitHub Actions | Vulnerability, secret and misconfiguration validation | CI history |

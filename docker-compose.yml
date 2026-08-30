@@ -85,14 +85,20 @@ services:
     container_name: lcnc-discovery
     environment:
       APPSMITH_BASE_URL: http://appsmith
-      APPSMITH_USER: ${APPSMITH_USER}
-      APPSMITH_PASSWORD: ${APPSMITH_PASSWORD}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${APPSMITH_DISCOVERY_VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/appsmith_discovery_vault_secret_id
+      APPSMITH_VAULT_SECRET_PATH: secret/data/integrations/appsmith
       GOVERNANCE_API_URL: http://governance-api:8000
       DISCOVERY_INTERVAL_SECONDS: "60"
+    secrets:
+      - appsmith_discovery_vault_secret_id
     depends_on:
       appsmith:
         condition: service_healthy
       governance-api:
+        condition: service_healthy
+      vault:
         condition: service_healthy
     networks:
       - appsmith_restricted
@@ -227,7 +233,7 @@ services:
       RISK_ENGINE_URL: http://risk-engine:8001
       VAULT_ADDR: http://vault:8200
       VAULT_ROLE_ID: ${VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/governance_api_vault_secret_id
       VAULT_DB_ROLE: governance-api
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
@@ -241,6 +247,8 @@ services:
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro
+    secrets:
+      - governance_api_vault_secret_id
     expose:
       - "8000"
     networks:
@@ -284,7 +292,7 @@ services:
       RISK_ENGINE_URL: http://risk-engine:8001
       VAULT_ADDR: http://vault:8200
       VAULT_ROLE_ID: ${VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/governance_api_vault_secret_id
       VAULT_DB_ROLE: governance-api
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
@@ -298,6 +306,8 @@ services:
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro
+    secrets:
+      - governance_api_vault_secret_id
     expose:
       - "8000"
     networks:
@@ -426,7 +436,16 @@ services:
     environment:
       ML_ANALYTICS_URL: http://ml-analytics:8002
       GOVERNANCE_API_URL: http://governance-api:8000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${ENTERPRISE_DISCOVERY_VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/enterprise_discovery_vault_secret_id
+      VAULT_DB_ROLE: enterprise-discovery
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
+    secrets:
+      - enterprise_discovery_vault_secret_id
     ports:
       - "127.0.0.1:8006:8006"
     depends_on:
@@ -455,8 +474,17 @@ services:
       context: ./governance-automation
     container_name: lcnc-governance-automation
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${GOVERNANCE_AUTOMATION_VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/governance_automation_vault_secret_id
+      VAULT_DB_ROLE: governance-automation
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
       ESCALATION_INTERVAL_SECONDS: "30"
+    secrets:
+      - governance_automation_vault_secret_id
     ports:
       - "127.0.0.1:8007:8007"
     depends_on:
@@ -529,3 +557,16 @@ networks:
   # It exists specifically so Docker can publish 127.0.0.1:8080.
   appsmith_edge:
     driver: bridge
+
+secrets:
+  governance_api_vault_secret_id:
+    file: ./.runtime-secrets/governance-api-secret-id
+
+  enterprise_discovery_vault_secret_id:
+    file: ./.runtime-secrets/enterprise-discovery-secret-id
+
+  governance_automation_vault_secret_id:
+    file: ./.runtime-secrets/governance-automation-secret-id
+
+  appsmith_discovery_vault_secret_id:
+    file: ./.runtime-secrets/appsmith-discovery-secret-id

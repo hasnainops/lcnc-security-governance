@@ -12,6 +12,8 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
+from .database import get_connection
+
 
 from .jit import (
     jit_router,
@@ -27,7 +29,6 @@ app = FastAPI(
 
 app.include_router(jit_router)
 
-DATABASE_URL = os.environ["DATABASE_URL"]
 
 ESCALATION_INTERVAL_SECONDS = int(
     os.getenv(
@@ -52,13 +53,6 @@ class HumanDecision(BaseModel):
     reason: str = Field(
         min_length=1,
         max_length=2000,
-    )
-
-
-def get_connection():
-    return psycopg.connect(
-        DATABASE_URL,
-        row_factory=dict_row,
     )
 
 

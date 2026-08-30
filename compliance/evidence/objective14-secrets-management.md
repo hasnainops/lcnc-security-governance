@@ -1,0 +1,233 @@
+# Objective 14 — Secrets Management and Secure Credential Handling
+
+## Objective
+
+Implement secrets management and secure credential handling for integrations.
+
+## MVP Assessment
+
+**FULL / COMPLETE**
+
+The local MVP demonstrates centralized secret management, workload-specific Vault identities, short-lived dynamic database credentials, least-privilege authorization, protected bootstrap-secret delivery, managed integration credentials, token renewal, credential revocation, and service recovery.
+
+Production Vault hardening remains an explicit deployment boundary and is not claimed by the local MVP.
+
+---
+
+## Implemented Controls
+
+### 1. Centralized Secrets Management
+
+HashiCorp Vault is the centralized runtime secrets service.
+
+The MVP uses:
+
+- Vault AppRole workload authentication
+- Vault database secrets engine
+- Vault KV v2
+- workload-specific Vault policies
+- renewable Vault service tokens
+- protected file-based SecretID delivery
+
+Sensitive AppRole SecretIDs are not supplied to application workloads as environment variables.
+
+---
+
+## 2. Dedicated Workload Identities
+
+Separate AppRoles and policies exist for:
+
+- `governance-api`
+- `enterprise-discovery`
+- `governance-automation`
+- `appsmith-discovery`
+
+Each workload receives only the Vault capabilities required for its function.
+
+Cross-workload Vault access was tested and denied with HTTP 403.
+
+---
+
+## 3. Dynamic PostgreSQL Credentials
+
+The following workloads obtain PostgreSQL credentials dynamically from Vault:
+
+- Governance API
+- Enterprise Discovery
+- Governance Automation
+
+Vault database roles issue credentials with:
+
+- default TTL: 15 minutes
+- maximum TTL: 1 hour
+
+Application workloads no longer receive the long-lived PostgreSQL bootstrap password through `DATABASE_URL` or `POSTGRES_PASSWORD`.
+
+### Least-Privilege Proof
+
+Governance API:
+
+- permitted: required SELECT/INSERT/UPDATE operations
+- denied: DELETE
+- denied: Enterprise Discovery database tables
+- denied: Enterprise Discovery Vault database role
+
+Enterprise Discovery:
+
+- permitted: SELECT/INSERT/UPDATE on `enterprise_discoveries`
+- denied: DELETE
+- denied: Governance Automation tables
+- denied: Governance Automation Vault database role
+
+Governance Automation:
+
+- permitted: required approval/JIT operations
+- permitted: SELECT-only application/governance context
+- denied: unauthorized INSERT/UPDATE operations on `applications`
+- denied: DELETE
+- denied: Enterprise Discovery database access
+- denied: Enterprise Discovery Vault database role
+
+Runtime proof returned:
+
+> PASS: dynamic credentials and least-privilege isolation verified
+
+---
+
+## 4. Protected AppRole SecretID Delivery
+
+Workload SecretIDs are written under:
+
+`.runtime-secrets/`
+
+The directory is excluded from Git.
+
+SecretID files use mode `0600`.
+
+Docker Compose mounts the files into workloads and applications consume them through:
+
+`VAULT_SECRET_ID_FILE`
+
+The following sensitive environment variables were verified absent from remediated workload containers:
+
+- `VAULT_SECRET_ID`
+- `POSTGRES_PASSWORD`
+- password-bearing `DATABASE_URL`
+
+---
+
+## 5. Appsmith Integration Credential
+
+The Appsmith discovery integration credential is stored under the Vault KV v2 path:
+
+`secret/integrations/appsmith`
+
+The `appsmith-discovery` AppRole has read access only to its required managed secret path.
+
+The Discovery workload no longer receives:
+
+- `APPSMITH_USER`
+- `APPSMITH_PASSWORD`
+
+through its container environment.
+
+The workload instead receives:
+
+- `VAULT_ROLE_ID`
+- `VAULT_SECRET_ID_FILE`
+- `APPSMITH_VAULT_SECRET_PATH`
+
+### Authorization Isolation Proof
+
+The following runtime tests passed:
+
+- Appsmith Discovery AppRole authentication
+- scoped Appsmith KV read
+- renewable service-token renewal
+- denial of database credential access to Appsmith Discovery
+- denial of Appsmith KV access to Governance API
+
+Runtime result:
+
+> PASS: scoped secret access, isolation, and token renewal verified
+
+---
+
+## 6. Credential Revocation and Recovery
+
+A live AppRole SecretID revocation and recovery test was performed for Appsmith Discovery.
+
+The sequence was:
+
+1. authenticate successfully using the active SecretID
+2. destroy the active SecretID in Vault
+3. attempt authentication with the revoked SecretID
+4. verify the old credential is rejected
+5. issue a fresh SecretID
+6. write the fresh SecretID into the protected runtime file
+7. authenticate successfully with the new SecretID
+8. confirm the Vault-managed Appsmith credential remains accessible
+9. recreate the Discovery worker
+10. confirm Discovery recovers without authentication errors
+
+Runtime result:
+
+> PASS: old bootstrap credential revoked and fresh credential activated
+
+The compromised/revoked SecretID is not restored or reused.
+
+Recovery uses a newly issued credential.
+
+---
+
+## 7. Appsmith Password Scope
+
+The Appsmith account password remains a platform-issued/static integration credential.
+
+The MVP does **not** claim that this password is dynamically generated by Vault.
+
+The demonstrated security improvement is that the credential is:
+
+- centrally stored in Vault
+- removed from the Discovery container environment
+- readable only by the scoped Appsmith Discovery identity
+- protected by Vault authentication and policy
+
+Appsmith platform-password rotation itself was not exercised as part of this proof.
+
+---
+
+## 8. Regression Evidence
+
+Following the Objective 14 remediation:
+
+- Python tests: **48 passed**
+- OPA tests: **15/15 passed**
+- Docker Compose validation: PASS
+- Python syntax validation: PASS
+- Vault bootstrap shell syntax: PASS
+- `git diff --check`: PASS
+- Governance API A/B: healthy
+- Enterprise Discovery: healthy
+- Governance Automation: healthy
+- Discovery worker: running without matching authentication errors
+- Vault: healthy
+- PostgreSQL: healthy
+
+---
+
+## Production Boundary
+
+The local MVP intentionally does not claim a production-hardened Vault deployment.
+
+Production deployment should add controls such as:
+
+- TLS for Vault communication
+- persistent Vault storage
+- Vault high availability
+- operational unseal/recovery procedures
+- KMS or equivalent production key protection
+- enterprise/cloud-native workload identity where appropriate
+- production audit-log retention and monitoring
+
+These are production-hardening extensions rather than missing functionality in the Objective 14 local MVP demonstration.

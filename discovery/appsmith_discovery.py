@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 
@@ -11,8 +12,24 @@ APPSMITH_BASE_URL = os.getenv(
     "http://appsmith",
 )
 
-APPSMITH_USER = os.getenv("APPSMITH_USER")
-APPSMITH_PASSWORD = os.getenv("APPSMITH_PASSWORD")
+VAULT_ADDR = os.getenv(
+    "VAULT_ADDR",
+    "http://vault:8200",
+).rstrip("/")
+
+VAULT_ROLE_ID = os.getenv("VAULT_ROLE_ID")
+
+VAULT_SECRET_ID_FILE = os.getenv(
+    "VAULT_SECRET_ID_FILE"
+)
+
+APPSMITH_VAULT_SECRET_PATH = os.getenv(
+    "APPSMITH_VAULT_SECRET_PATH",
+    "secret/data/integrations/appsmith",
+)
+
+_vault_token = None
+_vault_token_valid_until = 0.0
 
 GOVERNANCE_API_URL = os.getenv(
     "GOVERNANCE_API_URL",
@@ -41,18 +58,168 @@ CLASSIFICATION_REQUIRED_FIELDS = [
 ]
 
 
-def login(client: httpx.Client):
-    if not APPSMITH_USER or not APPSMITH_PASSWORD:
+def _read_vault_secret_id():
+    if not VAULT_SECRET_ID_FILE:
         raise RuntimeError(
-            "APPSMITH_USER and APPSMITH_PASSWORD are required for Appsmith login"
+            "VAULT_SECRET_ID_FILE is required."
         )
+
+    try:
+        secret_id = Path(
+            VAULT_SECRET_ID_FILE
+        ).read_text().strip()
+    except OSError as exc:
+        raise RuntimeError(
+            "Unable to read Vault SecretID file."
+        ) from exc
+
+    if not secret_id:
+        raise RuntimeError(
+            "Vault SecretID file is empty."
+        )
+
+    return secret_id
+
+
+def _vault_login():
+    global _vault_token
+    global _vault_token_valid_until
+
+    if not VAULT_ROLE_ID:
+        raise RuntimeError(
+            "VAULT_ROLE_ID is required."
+        )
+
+    response = httpx.post(
+        f"{VAULT_ADDR}/v1/auth/approle/login",
+        json={
+            "role_id": VAULT_ROLE_ID,
+            "secret_id": _read_vault_secret_id(),
+        },
+        timeout=5,
+    )
+
+    response.raise_for_status()
+
+    auth = response.json().get("auth", {})
+
+    token = auth.get("client_token")
+    ttl = int(auth.get("lease_duration") or 0)
+
+    if not token or ttl <= 0:
+        raise RuntimeError(
+            "Vault AppRole authentication returned "
+            "an invalid token or TTL."
+        )
+
+    _vault_token = token
+
+    _vault_token_valid_until = (
+        time.monotonic()
+        + max(30, ttl - 60)
+    )
+
+    return token
+
+
+def _get_vault_token():
+    global _vault_token
+    global _vault_token_valid_until
+
+    if (
+        _vault_token
+        and time.monotonic()
+        < _vault_token_valid_until
+    ):
+        return _vault_token
+
+    if _vault_token:
+        try:
+            response = httpx.post(
+                (
+                    f"{VAULT_ADDR}"
+                    "/v1/auth/token/renew-self"
+                ),
+                headers={
+                    "X-Vault-Token": _vault_token,
+                },
+                json={},
+                timeout=5,
+            )
+
+            response.raise_for_status()
+
+            auth = response.json().get(
+                "auth",
+                {}
+            )
+
+            ttl = int(
+                auth.get("lease_duration")
+                or 0
+            )
+
+            if ttl > 0:
+                _vault_token_valid_until = (
+                    time.monotonic()
+                    + max(30, ttl - 60)
+                )
+
+                return _vault_token
+
+        except httpx.HTTPError:
+            _vault_token = None
+            _vault_token_valid_until = 0.0
+
+    return _vault_login()
+
+
+def get_appsmith_credentials():
+    token = _get_vault_token()
+
+    response = httpx.get(
+        (
+            f"{VAULT_ADDR}/v1/"
+            f"{APPSMITH_VAULT_SECRET_PATH}"
+        ),
+        headers={
+            "X-Vault-Token": token,
+        },
+        timeout=5,
+    )
+
+    response.raise_for_status()
+
+    payload = response.json()
+
+    secret = (
+        payload
+        .get("data", {})
+        .get("data", {})
+    )
+
+    username = secret.get("username")
+    password = secret.get("password")
+
+    if not username or not password:
+        raise RuntimeError(
+            "Vault Appsmith credential is incomplete."
+        )
+
+    return username, password
+
+
+def login(client: httpx.Client):
+    username, password = (
+        get_appsmith_credentials()
+    )
 
     response = client.post(
         f"{APPSMITH_BASE_URL}/api/v1/login",
         headers={"X-Requested-By": "Appsmith"},
         data={
-            "username": APPSMITH_USER,
-            "password": APPSMITH_PASSWORD,
+            "username": username,
+            "password": password,
         },
     )
 

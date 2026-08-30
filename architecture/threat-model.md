@@ -28,7 +28,7 @@ Changes are validated with automated security checks.
 | ID | Threat | Potential Impact | Current Mitigation | Residual Risk | Status |
 |---|---|---|---|---|---|
 | TM-01 | Unauthorized access to portal/API | Unauthorized governance operations | Localhost binding; OPA access-control capability | No enterprise SSO or strong API identity | Partial |
-| TM-02 | Discovery or runtime credential compromise | Unauthorized LCNC inventory or control-plane access | `.env` excluded from Git; CI secret scanning; Vault AppRole for Governance API database access; dynamic PostgreSQL credentials | Local MVP still contains some environment-based demo secrets; production Vault hardening is required | Partial |
+| TM-02 | Discovery or runtime credential compromise | Unauthorized LCNC inventory or control-plane access | `.env` and protected runtime-secret files excluded from Git; CI secret scanning; dedicated Vault AppRoles; file-based SecretID delivery; Vault-managed Appsmith integration credential; dynamic PostgreSQL credentials; demonstrated SecretID revocation/recovery | Local Vault development mode lacks production TLS, persistent storage and HA; Appsmith account password remains platform-issued/static although centrally Vault-managed | Implemented / Residual |
 | TM-03 | Forged or incorrect source metadata | Incorrect governance decisions | Authenticated Appsmith discovery; persisted enterprise discovery evidence; unknown values remain unknown | A compromised or untrusted source platform can still provide false metadata | Partial |
 | TM-04 | Governance workflow bypass | Risky application receives improper approval | Risk evaluation; OPA governance policy; persistent approval requests/events; required roles; hard BLOCK protection | Enterprise user authentication and signed approval identity are not implemented | Implemented / Residual |
 | TM-05 | OPA policy tampering | Mandatory guardrails weakened | Policy stored in Git; read-only runtime mount; OPA tests; CI validation | Repository write access remains privileged | Implemented / Residual |
@@ -45,7 +45,7 @@ Changes are validated with automated security checks.
 | TM-16 | Monitoring information disclosure | Operational or security information exposed | Prometheus and Grafana are bound locally in the MVP | Production requires authentication and network segmentation | Partial |
 | TM-17 | Excessive temporary privilege | Privileged action exceeds business need | Accountable JIT approval; action-scoped grants; TTL; OPA enforcement; automatic expiry and revoke events | Enterprise identity proofing and PAM integration remain production requirements | Implemented / Residual |
 | TM-18 | Approval workflow manipulation | Improper approval or escalation bypass | Persistent approval requests/events; required roles; SLA escalation; human decision audit; hard BLOCK protection | Enterprise identity and signed approval evidence are not implemented | Implemented / Residual |
-| TM-19 | Vault or dynamic credential misuse | Unauthorized database access | Vault AppRole authentication; scoped Vault policy; short-lived PostgreSQL credentials | Local Vault development mode is not production hardened | Implemented / Residual |
+| TM-19 | Vault or dynamic credential misuse | Unauthorized database or integration-secret access | Dedicated AppRoles and policies; 15-minute PostgreSQL credentials; table-level least privilege; cross-workload Vault access denied; renewable service tokens; AppRole SecretID revocation/recovery | Local Vault development mode is not production hardened with TLS, persistent storage or HA | Implemented / Residual |
 | TM-20 | Required training bypass | Governance approval despite unresolved training requirements | Automated training assignments; due/status tracking; training events; approval training gate | Enterprise LMS identity and attestation are not integrated | Implemented / Residual |
 
 ---
@@ -187,11 +187,14 @@ Current MVP controls:
 - `.env` is excluded from Git.
 - `.env.example` contains placeholders only.
 - CI performs repository secret scanning.
-- Vault provides centralized runtime secret services for Governance API database access.
-- Governance API authenticates to Vault through AppRole.
-- Vault policy limits access to the required database credential path.
-- Vault's PostgreSQL secrets engine issues short-lived dynamic database credentials.
+- Vault provides centralized runtime secret services for database workloads and the Appsmith discovery integration.
+- Governance API, Enterprise Discovery, Governance Automation, and Appsmith Discovery authenticate to Vault through dedicated AppRoles.
+- Workload-specific Vault policies limit each identity to its required database or integration-secret path.
+- Vault's PostgreSQL secrets engine issues 15-minute dynamic credentials to Governance API, Enterprise Discovery, and Governance Automation.
 - Dynamic database credentials are not committed to source control.
+- AppRole SecretIDs are delivered through protected runtime files rather than workload environment variables.
+- Appsmith Discovery retrieves its managed integration credential from Vault KV v2.
+- Revocation testing proved that a destroyed SecretID is rejected and recovery uses a freshly issued credential.
 - Governance API database connections use the dynamically issued identity.
 
 Current MVP limitations:
@@ -201,7 +204,7 @@ Current MVP limitations:
 - production Vault HA is not configured
 - TLS is not configured for local Vault communication
 - production unseal and recovery procedures are not implemented
-- not every local demonstration secret has been migrated into Vault
+- local bootstrap or administrative demo credentials outside the Objective 14 workload/integration scope may remain outside Vault
 
 These limitations are production-hardening requirements rather than hidden MVP capabilities.
 
@@ -240,7 +243,7 @@ Before production deployment, additional controls would include:
 - persistent Vault storage
 - Vault HA
 - controlled unseal and recovery procedures
-- broader migration of runtime secrets into managed secret paths
+- broader migration of administrative/bootstrap-only local secrets into managed production secret paths
 - network segmentation
 - database encryption and restricted roles
 - tamper-evident audit storage
