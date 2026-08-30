@@ -55,3 +55,5 @@ flowchart LR
 
     API -->|"Operational metrics"| PROM
     GW -->|"Gateway metrics"| PROM
+
+```

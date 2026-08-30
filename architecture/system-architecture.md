@@ -1,10 +1,10 @@
-# LCNC Security Governance — MVP V3 System Architecture
+# LCNC Security Governance — MVP V5 System Architecture
 
 ## Purpose
 
 The platform provides an external AI-assisted security and governance control plane for enterprise low-code/no-code environments.
 
-Appsmith remains the connected reference LCNC platform. MVP V3 also introduces an Enterprise Discovery service that accepts normalized discovery events from multiple source adapters, persists source evidence, and hands sufficiently complete telemetry to ML analysis.
+Appsmith remains the connected reference LCNC platform. The current MVP also includes an Enterprise Discovery service that accepts normalized discovery events from multiple source adapters, persists source evidence, and hands sufficiently complete telemetry to ML analysis.
 
 The control plane discovers and inventories citizen-developed applications, analyzes risk, applies security controls, enforces policy, automates accountable approval workflows, manages time-limited privileged access, records evidence, and provides governance and developer guidance.
 
@@ -24,6 +24,8 @@ The control plane discovers and inventories citizen-developed applications, anal
 - Security controls have distinct responsibilities rather than stacking overlapping tools.
 
 ## High-Level Architecture
+
+The logical `Governance API` component below is exposed through a stable Caddy endpoint. At runtime, Caddy health-checks and load-balances across two stateless Governance API replicas.
 
 Citizen Developer
 |
@@ -545,12 +547,12 @@ Host-accessible services:
 
 - Governance Portal — `localhost:3000`
 - Grafana — `localhost:3001`
-- Governance API — `localhost:8000`
+- Governance API — `localhost:8000` through the stable Caddy endpoint; two internal stateless API replicas provide local control-plane failover
 - ML Analytics — `localhost:8002`
 - DLP Engine — `localhost:8004`
 - Enterprise Discovery — `localhost:8006`
 - Governance Automation — `localhost:8007`
-- Appsmith — `localhost:8080`
+- Appsmith — `localhost:8080` through `appsmith-proxy`; Appsmith itself remains only on the internal `appsmith_restricted` network
 - OPA — `localhost:8181`
 - Vault — `localhost:8200`
 - SonarQube — `localhost:9000`
@@ -558,13 +560,18 @@ Host-accessible services:
 
 Internal-only services:
 
+- Governance API A/B replicas — `8000`, behind the stable Caddy endpoint
 - Risk Engine — `8001`
 - Security Scanner — `8003`
 - Integration Gateway — `8005`
 - PostgreSQL — `5432`
 - Appsmith discovery worker — background service
 
-Docker Compose provides the local service network.
+Docker Compose provides the local service networks.
+
+Appsmith itself is attached only to `appsmith_restricted`, which is configured as an internal Docker network. `appsmith-proxy` is dual-homed on `appsmith_restricted` and `appsmith_edge`, providing localhost access without attaching Appsmith itself to the edge network.
+
+The stable `governance-api` service is a Caddy endpoint attached to `appsmith_restricted` and the default service network. It health-checks and load-balances across `governance-api-a` and `governance-api-b`.
 
 Internal-only services are intentionally not exposed to the host when direct browser/operator access is unnecessary.
 
@@ -585,7 +592,7 @@ Production hardening would additionally require:
 - network segmentation
 - database hardening and encryption
 - tamper-evident audit storage
-- high availability
+- broader control-plane and stateful-service high availability beyond the demonstrated Governance API A/B failover
 - backup and disaster recovery
 - SIEM integration
 - additional production LCNC/security connectors

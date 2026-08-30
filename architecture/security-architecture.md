@@ -1,4 +1,4 @@
-# LCNC Security Governance — MVP V3 Security Architecture
+# LCNC Security Governance — MVP V5 Security Architecture
 
 ## Purpose
 
@@ -21,12 +21,15 @@ The architecture intentionally separates:
 ## Security Control Architecture
 
 ```mermaid
+
 flowchart TB
 
     DEV["Citizen Developer"]
-    APP["Appsmith"]
-    SOURCES["Enterprise Discovery Sources"]
 
+    APPPROXY["Appsmith Edge Proxy<br/>Caddy"]
+    APP["Appsmith<br/>restricted internal network"]
+
+    SOURCES["Enterprise Discovery Sources"]
     DISC["Appsmith Discovery"]
     EDISC["Enterprise Discovery"]
 
@@ -34,7 +37,9 @@ flowchart TB
     RISK["Risk Engine"]
     SCAN["Security Scanner"]
 
-    API["Governance API"]
+    APIEDGE["Stable Governance API Endpoint<br/>Caddy"]
+    APIA["Governance API A"]
+    APIB["Governance API B"]
     AUTO["Governance Automation"]
 
     OPA["OPA"]
@@ -62,22 +67,44 @@ flowchart TB
     ZAP["OWASP ZAP Baseline"]
     DEPS["Dependabot"]
 
-    DEV --> APP
+    DEV --> APPPROXY
+    APPPROXY --> APP
+
     APP --> DISC
+    APP --> APIEDGE
+
     SOURCES --> EDISC
 
-    DISC --> API
+    DISC --> APIEDGE
     EDISC --> ML
-    EDISC --> API
+    EDISC --> APIEDGE
 
-    API --> ML
-    API --> RISK
-    API --> SCAN
-    API --> OPA
-    API --> AUTO
-    API --> GW
-    API --> COMP
-    API --> GUIDE
+    APIEDGE --> APIA
+    APIEDGE --> APIB
+
+    APIA --> ML
+    APIB --> ML
+
+    APIA --> RISK
+    APIB --> RISK
+
+    APIA --> SCAN
+    APIB --> SCAN
+
+    APIA --> OPA
+    APIB --> OPA
+
+    APIA --> AUTO
+    APIB --> AUTO
+
+    APIA --> GW
+    APIB --> GW
+
+    APIA --> COMP
+    APIB --> COMP
+
+    APIA --> GUIDE
+    APIB --> GUIDE
 
     AUTO --> JIT
     AUTO --> TRAIN
@@ -86,22 +113,29 @@ flowchart TB
     GW --> DLP
     DLP --> GW
 
-    API --> VAULT
+    APIA --> VAULT
+    APIB --> VAULT
+
     VAULT --> DB
-    API --> DB
+
+    APIA --> DB
+    APIB --> DB
     AUTO --> DB
 
-    PORTAL --> API
+    PORTAL --> APIEDGE
 
-    API --> PROM
+    PROM --> APIEDGE
+    PROM --> GW
+    PROM --> OPA
     PROM --> GRAF
 
-    TEST --> API
+    TEST --> APIEDGE
     OPATEST --> OPA
-    SONAR --> API
-    TRIVY --> API
-    ZAP --> API
+    SONAR --> APIEDGE
+    TRIVY --> APIEDGE
+    ZAP --> APIEDGE
     DEPS --> TEST
+
 ```
 
 ## Decision Ownership
@@ -143,7 +177,11 @@ DLP and the Integration Gateway fail closed for protected outbound-transfer eval
 
 Vault reduces long-lived database-secret exposure by issuing dynamic credentials to the Governance API.
 
-Internal services remain on the Docker service network unless direct host/operator access is required.
+Internal services remain on Docker service networks unless direct host/operator access is required.
+
+Appsmith itself remains isolated on the internal `appsmith_restricted` network; localhost access is mediated by the dual-homed Caddy `appsmith-proxy`.
+
+The stable Governance API endpoint uses Caddy health-aware load balancing across two stateless Governance API replicas. This demonstrates local API control-plane failover, not full-stack or stateful-service high availability.
 
 ## MVP Boundary
 
@@ -156,7 +194,7 @@ Production deployment would add:
 - TLS/mTLS
 - production-hardened Vault
 - network segmentation
-- high availability
+- broader control-plane and stateful-service high availability beyond the demonstrated Governance API A/B failover
 - backup and disaster recovery
 - SIEM integration
 - tamper-evident audit storage

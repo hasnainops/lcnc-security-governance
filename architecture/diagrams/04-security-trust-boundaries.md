@@ -1,61 +1,82 @@
-# Security Trust Boundaries — MVP V2
+# Security Trust Boundaries — MVP V5
 
 ```mermaid
+
 flowchart LR
 
-    subgraph TB1["1 — Citizen Development"]
+    subgraph TB1["1 — Citizen Development / Restricted Runtime"]
         DEV["Citizen Developer"]
-        APP["Appsmith"]
-        DEV --> APP
+        APPPROXY["Appsmith Edge Proxy<br/>Caddy"]
+        APP["Appsmith<br/>appsmith_restricted only"]
+
+        DEV --> APPPROXY
+        APPPROXY --> APP
     end
 
-    subgraph TB2["2 — Continuous Discovery"]
-        DISC["Discovery Adapter<br/>60-second cycle"]
+    subgraph TB2["2 — Continuous / Enterprise Discovery"]
+        DISC["Appsmith Discovery<br/>60-second cycle<br/>dual-homed"]
+        EDISC["Enterprise Discovery"]
     end
 
     subgraph TB3["3 — AI / ML Analytics"]
         ML["ML Analytics"]
         ANOM["Isolation Forest"]
         CLASS["TF-IDF + Logistic Regression"]
+
         ML --> ANOM
         ML --> CLASS
     end
 
     subgraph TB4["4 — Governance Control Plane"]
-        API["Governance API"]
+        APIEDGE["Stable Governance API Endpoint<br/>Caddy"]
+        APIA["Governance API A"]
+        APIB["Governance API B"]
         RISK["Risk Engine"]
         SCAN["Security Scanner"]
         COMP["Dynamic Compliance"]
-        GUIDE["Citizen Guidance / Training"]
+        GUIDE["Citizen Guidance"]
+        AUTO["Governance Automation"]
+
+        APIEDGE --> APIA
+        APIEDGE --> APIB
     end
 
-    subgraph TB5["5 — Mandatory Policy"]
+    subgraph TB5["5 — Mandatory Policy / Privilege"]
         OPA["OPA"]
         GOV["Governance Policy"]
         ACCESS["Access Policy"]
+        JIT["JIT Privilege Lifecycle"]
+
         OPA --> GOV
         OPA --> ACCESS
+        JIT --> OPA
     end
 
     subgraph TB6["6 — Sensitive Data / Egress"]
         GW["Integration Gateway"]
         DLP["DLP Engine"]
+
         GW --> DLP
     end
 
-    subgraph TB7["7 — Evidence"]
+    subgraph TB7["7 — Evidence / Secrets"]
         DB["PostgreSQL"]
+        VAULT["Vault<br/>AppRole + Dynamic DB Credentials"]
+
+        VAULT --> DB
     end
 
     subgraph TB8["8 — Governance Experience"]
         PORTAL["Governance Portal"]
         NGINX["Nginx /api Proxy"]
+
         PORTAL --> NGINX
     end
 
     subgraph TB9["9 — Observability"]
         PROM["Prometheus"]
         GRAF["Grafana"]
+
         PROM --> GRAF
     end
 
@@ -64,37 +85,58 @@ flowchart LR
         CI["GitHub Actions"]
         TRIVY["Trivy"]
         DEP["Dependabot"]
+
         GIT --> CI
         CI --> TRIVY
         DEP --> GIT
     end
 
     APP -->|"LCNC metadata"| DISC
+    APP -->|"governed API access"| APIEDGE
 
-    DISC -->|"inventory"| API
-    DISC -->|"analysis"| ML
-    ML -->|"advisory AI evidence"| API
+    DISC --> APIEDGE
+    DISC --> ML
 
-    API --> RISK
-    RISK -->|"score + factors"| API
+    EDISC --> APIEDGE
+    EDISC --> ML
 
-    API --> SCAN
-    SCAN -->|"findings"| API
+    ML -->|"advisory AI evidence"| APIEDGE
 
-    API --> OPA
-    OPA -->|"ALLOW / DENY"| API
+    APIA --> RISK
+    APIB --> RISK
 
-    API --> GW
+    APIA --> SCAN
+    APIB --> SCAN
+
+    APIA --> OPA
+    APIB --> OPA
+
+    APIA --> AUTO
+    APIB --> AUTO
+
+    AUTO --> JIT
+
+    APIA --> GW
+    APIB --> GW
+
     DLP -->|"sensitivity"| GW
-    GW -->|"ALLOW / BLOCK"| API
 
-    API --> COMP
+    APIA --> COMP
+    APIB --> COMP
+
     COMP --> GUIDE
 
-    API --> DB
-    DB --> API
+    APIA --> VAULT
+    APIB --> VAULT
 
-    NGINX --> API
+    APIA --> DB
+    APIB --> DB
+    AUTO --> DB
 
-    API --> PROM
-    GW --> PROM
+    NGINX --> APIEDGE
+
+    PROM --> APIEDGE
+    PROM --> GW
+    PROM --> OPA
+
+```

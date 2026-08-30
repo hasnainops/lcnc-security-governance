@@ -249,7 +249,7 @@ Before production deployment, additional controls would include:
 - tamper-evident audit storage
 - enterprise API gateway controls
 - distributed rate limiting
-- high availability
+- broader control-plane and stateful-service high availability beyond the demonstrated Governance API A/B failover
 - backup and disaster recovery
 - SIEM integration
 - additional LCNC and enterprise security connectors
