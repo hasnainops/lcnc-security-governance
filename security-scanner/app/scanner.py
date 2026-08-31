@@ -133,7 +133,7 @@ def scan_application(payload):
             )
         )
 
-    if "http://" in connector_metadata.lower():
+    if "http://" in connector_metadata.lower():  # NOSONAR - SEC-006 intentionally detects insecure HTTP metadata
         findings.append(
             finding(
                 "SEC-006",

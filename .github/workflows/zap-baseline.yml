@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Build Governance API
         run: |
@@ -54,7 +54,12 @@ jobs:
       - name: Prepare ZAP reports
         run: |
           mkdir -p zap-reports
-          chmod 0777 zap-reports
+
+          ZAP_UID="$(docker run --rm --entrypoint id             ghcr.io/zaproxy/zaproxy:stable -u)"
+          ZAP_GID="$(docker run --rm --entrypoint id             ghcr.io/zaproxy/zaproxy:stable -g)"
+
+          sudo chown "${ZAP_UID}:${ZAP_GID}" zap-reports
+          sudo chmod 0750 zap-reports
 
       - name: Run ZAP baseline
         run: |
@@ -68,9 +73,14 @@ jobs:
             -J zap-report.json \
             -r zap-report.html
 
+      - name: Restore ZAP report ownership
+        if: always()
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" zap-reports
+
       - name: Upload ZAP reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: zap-baseline-report
           path: zap-reports/

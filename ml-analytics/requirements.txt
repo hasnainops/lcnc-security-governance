@@ -1,5 +1,5 @@
-fastapi
-uvicorn[standard]
-scikit-learn>=1.9,<1.10
-pandas
-joblib
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+scikit-learn==1.9.0
+pandas==3.0.5
+joblib==1.5.3
