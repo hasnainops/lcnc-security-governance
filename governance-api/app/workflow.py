@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb
 
+from .approval_automation import route_governance_approval
 from .assessment import assess_and_persist
 from .database import get_connection
 from .metrics import (
@@ -13,15 +14,38 @@ from .metrics import (
     RISK_SCORE,
 )
 from .policy import evaluate_and_persist
+from .training import assign_required_training
 
 
-def determine_outcome(assessment, policy):
+def determine_outcome(
+    assessment,
+    policy,
+    application,
+):
     if not policy["allowed"]:
         return {
             "outcome": "BLOCK",
             "status": "blocked",
             "required_role": "Security/GRC Reviewer",
             "reasons": policy["reasons"],
+        }
+
+    if (
+        application.get("ml_anomaly_status")
+        == "assessed"
+        and application.get("ml_anomalous") is True
+    ):
+        return {
+            "outcome": "SECURITY_REVIEW",
+            "status": "pending_review",
+            "required_role": "Security/GRC Reviewer",
+            "reasons": [
+                (
+                    "AI anomaly assessment requires "
+                    "security/GRC review; AI is advisory "
+                    "and does not override policy."
+                )
+            ],
         }
 
     risk_level = assessment["level"].lower()
@@ -76,9 +100,24 @@ def run_governance_workflow(application_id: UUID):
             action=policy["action"]
         ).inc()
 
+        with get_connection() as connection:
+            application = connection.execute(
+                """
+                SELECT
+                    ml_anomaly_status,
+                    ml_anomalous,
+                    ml_decision_score,
+                    ml_model_version
+                FROM applications
+                WHERE id = %s;
+                """,
+                (application_id,),
+            ).fetchone()
+
         governance = determine_outcome(
             assessment,
             policy,
+            application or {},
         )
 
         governance_id = uuid4()
@@ -133,6 +172,20 @@ def run_governance_workflow(application_id: UUID):
             status=governance["status"],
         ).inc()
 
+        approval_automation = route_governance_approval(
+            application_id
+        )
+
+        try:
+            training_automation = assign_required_training(
+                application_id
+            )
+        except Exception as exc:
+            training_automation = {
+                "status": "assignment_error",
+                "error": str(exc),
+            }
+
         return {
             "application_id": application_id,
             "application_name": assessment["application_name"],
@@ -156,6 +209,8 @@ def run_governance_workflow(application_id: UUID):
                 "reasons": decision["reasons"],
                 "created_at": decision["created_at"],
             },
+            "approval_automation": approval_automation,
+            "training_automation": training_automation,
         }
 
     finally:

@@ -277,6 +277,50 @@
         ]
       },
       "implementation_status": "implemented"
+    },
+    {
+      "id": "LCNC-GOV-09",
+      "control_objective": "Protect workload and integration credentials throughout their lifecycle",
+      "platform_capabilities": [
+        "Centralized Vault secret management",
+        "Dedicated workload AppRoles and policies",
+        "Protected file-based AppRole SecretID delivery",
+        "Short-lived dynamic PostgreSQL credentials",
+        "Table-level least-privilege database authorization",
+        "Vault-managed Appsmith integration credential",
+        "Renewable Vault service tokens",
+        "Credential revocation and recovery"
+      ],
+      "evidence": [
+        "vault/*.hcl workload policies",
+        "scripts/bootstrap-vault.sh",
+        "enterprise-discovery/app/database.py",
+        "governance-automation/app/database.py",
+        "governance-api/app/database.py",
+        "discovery/appsmith_discovery.py",
+        "compliance/evidence/objective14-secrets-management.md"
+      ],
+      "responsible_role": "Security Engineering / Platform Operations",
+      "validation": "Authenticate each workload through its scoped AppRole, validate dynamic database privileges and cross-role denial, verify Appsmith KV isolation, renew the Vault token, revoke the active Appsmith Discovery SecretID, confirm old authentication fails, issue a fresh SecretID and verify service recovery",
+      "framework_mapping": {
+        "nist_csf_2_0": [
+          "GOVERN",
+          "PROTECT",
+          "RESPOND",
+          "RECOVER"
+        ],
+        "iso_iec_27001": [
+          "Identity and access management",
+          "Authentication information",
+          "Least privilege",
+          "Secure credential lifecycle"
+        ],
+        "owasp_citizen_development": [
+          "CD-SEC-04 Sensitive Data Leakage and Handling Failures",
+          "CD-SEC-07 Security Misconfiguration"
+        ]
+      },
+      "implementation_status": "implemented"
     }
   ]
 }

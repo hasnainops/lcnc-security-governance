@@ -1,0 +1,21 @@
+application_name,business_purpose,data_fields,connector_metadata,expected_classification
+City Event Bulletin,Publish approved community schedules for external visitors,event_title venue public_map_link organizer,public calendar website,public
+Product Feature Showcase,Present approved product information without customer records,product_title feature_summary documentation_url,marketing site documentation feed,public
+Media Announcement Hub,Distribute approved company announcements to external audiences,article_title spokesperson release_date media_url,corporate website feed,public
+Open Training Catalog,List learning courses available to external visitors,course_title summary enrollment_link,public learning portal,public
+Supplier Expo Page,Publish approved exhibition information for public viewing,supplier_name booth_number public_description,external event website,public
+Shift Handover Board,Coordinate operational handovers between employee teams,staff_name shift location handover_notes,workforce system,internal
+Procurement Request Tracker,Manage employee purchase requests and approvals,requester department item approval_state,procurement API,internal
+Engineering Sprint Planner,Coordinate internal engineering work and task status,assignee sprint ticket status,internal issue tracker,internal
+Facilities Maintenance Queue,Route workplace maintenance requests between internal teams,employee_name office_area request_notes,facilities management system,internal
+Budget Planning Worksheet,Prepare departmental forecasts for internal planning,department cost_center forecast_notes,finance planning database,internal
+Client Renewal Workspace,Manage client contacts and account renewal activity,client_name contact_email phone contract_id,CRM account API,confidential
+Support Escalation Console,Investigate customer service cases and associated contact records,customer_id email case_notes address,customer support database,confidential
+Delivery Exception Manager,Resolve delivery issues using recipient contact information,recipient_name phone street_address tracking_id,logistics customer API,confidential
+Customer Feedback Casebook,Analyze customer complaints linked to customer accounts,customer_email customer_id complaint_notes,CRM service,confidential
+Subscriber Service Tool,Administer subscriber accounts and contact information,subscriber_id email mobile account_status,subscription database,confidential
+Privileged Token Rotation,Rotate administrative credentials for privileged services,privileged_username access_token private_key secret_value,secret vault,restricted
+Bank Transfer Approval,Authorize sensitive bank payment instructions,bank_account routing_number transfer_amount auth_token,banking gateway,restricted
+Card Settlement Console,Reconcile sensitive payment card transactions,card_number expiry security_code merchant_id,payment network,restricted
+Production Credential Recovery,Recover protected credentials used by production services,root_password api_secret client_secret,privileged access vault,restricted
+Payroll Deposit Setup,Maintain employee bank details for direct deposit,employee_id bank_account routing_number,payroll banking API,restricted

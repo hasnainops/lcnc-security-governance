@@ -1,0 +1,91 @@
+name: OWASP ZAP Baseline
+
+on:
+  push:
+    branches:
+      - main
+      - feature/mvp-v3-enterprise-automation
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: ZAP Baseline DAST
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Build Governance API
+        run: |
+          docker build \
+            -t lcnc-governance-api-dast \
+            governance-api
+
+      - name: Start Governance API
+        run: |
+          docker run -d \
+            --name governance-api-dast \
+            -p 8000:8000 \
+            lcnc-governance-api-dast
+
+      - name: Wait for API
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/docs >/dev/null; then
+              echo "Governance API ready"
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          docker logs governance-api-dast
+          exit 1
+
+      - name: Prepare ZAP reports
+        run: |
+          mkdir -p zap-reports
+
+          ZAP_UID="$(docker run --rm --entrypoint id             ghcr.io/zaproxy/zaproxy:stable -u)"
+          ZAP_GID="$(docker run --rm --entrypoint id             ghcr.io/zaproxy/zaproxy:stable -g)"
+
+          sudo chown "${ZAP_UID}:${ZAP_GID}" zap-reports
+          sudo chmod 0750 zap-reports
+
+      - name: Run ZAP baseline
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$PWD/zap-reports:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://127.0.0.1:8000/docs \
+            -I \
+            -J zap-report.json \
+            -r zap-report.html
+
+      - name: Restore ZAP report ownership
+        if: always()
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" zap-reports
+
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: zap-baseline-report
+          path: zap-reports/
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f governance-api-dast 2>/dev/null || true

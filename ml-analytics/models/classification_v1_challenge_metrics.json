@@ -1,0 +1,74 @@
+{
+  "model_version": "classification-v1",
+  "evaluation_type": "independent_synthetic_challenge_set",
+  "rows": 20,
+  "accuracy": 1.0,
+  "macro_f1": 1.0,
+  "confusion_matrix": [
+    [
+      5,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      5,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      5,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      5
+    ]
+  ],
+  "classification_report": {
+    "public": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "internal": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "confidential": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "restricted": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 5.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    }
+  },
+  "synthetic_evaluation_data": true,
+  "production_accuracy_claim": false
+}

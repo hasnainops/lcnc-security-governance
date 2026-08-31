@@ -1,0 +1,60 @@
+{
+  "model_purpose": "LCNC application metadata anomaly detection",
+  "model_family": "IsolationForest",
+  "version": "feature-schema-v1",
+  "features": [
+    {
+      "name": "owner_known",
+      "type": "binary",
+      "description": "1 when an accountable owner is known"
+    },
+    {
+      "name": "business_purpose_known",
+      "type": "binary",
+      "description": "1 when business purpose is documented"
+    },
+    {
+      "name": "internet_exposed",
+      "type": "binary",
+      "description": "1 when application is publicly/internet exposed"
+    },
+    {
+      "name": "external_integration_count",
+      "type": "integer",
+      "description": "Number of external integrations"
+    },
+    {
+      "name": "unapproved_integration_count",
+      "type": "integer",
+      "description": "Number of external integrations without approval"
+    },
+    {
+      "name": "uses_api_key",
+      "type": "binary",
+      "description": "1 when API-key credentials are used"
+    },
+    {
+      "name": "connector_count",
+      "type": "integer",
+      "description": "Total configured connectors"
+    },
+    {
+      "name": "external_domain_count",
+      "type": "integer",
+      "description": "Distinct external destination domains"
+    },
+    {
+      "name": "changes_last_24h",
+      "type": "integer",
+      "description": "Material application changes during the last 24 hours"
+    }
+  ],
+  "excluded_leakage_fields": [
+    "registration_status",
+    "shadow_label",
+    "risk_score",
+    "risk_level",
+    "opa_decision",
+    "governance_outcome"
+  ]
+}

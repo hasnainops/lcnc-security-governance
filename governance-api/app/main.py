@@ -43,12 +43,15 @@ def create_application(application: ApplicationCreate):
             internet_exposed,
             external_integration,
             integration_approved,
-            credential_type
+            credential_type,
+            data_fields,
+            connector_metadata
         )
         VALUES (
             %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s,
+            %s, %s
         )
         RETURNING *;
     """
@@ -69,6 +72,8 @@ def create_application(application: ApplicationCreate):
         application.external_integration,
         application.integration_approved,
         application.credential_type,
+        application.data_fields,
+        application.connector_metadata,
     )
 
     try:
@@ -143,12 +148,12 @@ def mark_application_seen(application_id: UUID):
     return application
 
 
-from .assessment import assess_and_persist
+from .assessment import assess_and_persist as assess_risk_and_persist
 
 
 @app.post("/applications/{application_id}/assess")
 def assess_application_risk(application_id: UUID):
-    return assess_and_persist(application_id)
+    return assess_risk_and_persist(application_id)
 
 
 from .models import ApplicationUpdate
@@ -186,6 +191,24 @@ def update_application(
                 risk_level = NULL,
                 risk_model_version = NULL,
                 risk_assessed_at = NULL,
+                ml_anomaly_status = 'stale',
+                ml_anomalous = NULL,
+                ml_decision_score = NULL,
+                ml_model_version = NULL,
+                ml_assessed_at = NULL,
+                shadow_it_candidate = FALSE,
+                ml_classification_status = 'stale',
+                ml_suggested_classification = NULL,
+                ml_classification_confidence = NULL,
+                ml_classification_review_required = NULL,
+                ml_classification_model_version = NULL,
+                ml_classified_at = NULL,
+                security_scan_status = 'stale',
+                security_finding_count = NULL,
+                security_highest_severity = NULL,
+                security_scan_passed = NULL,
+                security_scanner_version = NULL,
+                security_scanned_at = NULL,
                 governance_status = 'stale',
                 governance_outcome = NULL,
                 governance_decided_at = NULL,
@@ -205,12 +228,12 @@ def update_application(
     return application
 
 
-from .policy import evaluate_and_persist
+from .policy import evaluate_and_persist as evaluate_policy_and_persist
 
 
 @app.post("/applications/{application_id}/policy-evaluate")
 def evaluate_application_policy(application_id: UUID):
-    return evaluate_and_persist(application_id)
+    return evaluate_policy_and_persist(application_id)
 
 
 from .workflow import run_governance_workflow
@@ -255,3 +278,220 @@ def compliance_controls():
 @app.get("/applications/{application_id}/compliance-evidence")
 def application_compliance_evidence(application_id: UUID):
     return get_application_compliance_evidence(application_id)
+
+
+from .ml import analyze_and_persist as analyze_ml_and_persist
+
+
+@app.post("/applications/{application_id}/ml-analyze")
+def analyze_application_ml(application_id: UUID):
+    return analyze_ml_and_persist(application_id)
+
+
+from .classification import classify_and_persist
+
+
+@app.post("/applications/{application_id}/ml-classify")
+def classify_application_ml(application_id: UUID):
+    return classify_and_persist(application_id)
+
+
+from .security_scan import scan_and_persist
+
+
+@app.post("/applications/{application_id}/security-scan")
+def scan_application_security(application_id: UUID):
+    return scan_and_persist(application_id)
+
+
+from .integration import (
+    ControlledEgressRequest,
+    TransferEvaluationRequest,
+    evaluate_and_persist as evaluate_transfer_and_persist,
+    execute_controlled_egress,
+)
+
+
+@app.post(
+    "/applications/{application_id}/evaluate-transfer"
+)
+def evaluate_application_transfer(
+    application_id: UUID,
+    payload: TransferEvaluationRequest,
+):
+    return evaluate_transfer_and_persist(
+        application_id,
+        payload,
+    )
+
+
+@app.post(
+    "/applications/{application_id}/controlled-egress"
+)
+def execute_application_controlled_egress(
+    application_id: UUID,
+    payload: ControlledEgressRequest,
+):
+    return execute_controlled_egress(
+        application_id,
+        payload,
+    )
+
+
+from .access import (
+    AccessRequest,
+    authorize_and_persist,
+)
+
+
+@app.post(
+    "/applications/{application_id}/authorize"
+)
+def authorize_application_action(
+    application_id: UUID,
+    payload: AccessRequest,
+):
+    return authorize_and_persist(
+        application_id,
+        payload,
+    )
+
+
+from .dynamic_compliance import (
+    evaluate_dynamic_compliance,
+)
+
+
+@app.get(
+    "/applications/{application_id}/compliance/dynamic"
+)
+def get_dynamic_compliance(
+    application_id: UUID,
+):
+    return evaluate_dynamic_compliance(
+        application_id
+    )
+
+
+from .compliance_assessment import (
+    assess_and_persist as assess_compliance_and_persist,
+)
+
+
+@app.post(
+    "/applications/{application_id}/compliance/dynamic/assess"
+)
+def assess_application_compliance(
+    application_id: UUID,
+):
+    return assess_compliance_and_persist(
+        application_id
+    )
+
+
+from .citizen_guidance import (
+    build_guidance,
+)
+
+
+@app.get(
+    "/applications/{application_id}/citizen-guidance"
+)
+def get_citizen_guidance(
+    application_id: UUID,
+):
+    return build_guidance(
+        application_id
+    )
+
+
+from .training import (
+    TrainingCompletionRequest,
+    assign_required_training,
+    complete_training,
+    get_training_assignments,
+    get_training_status,
+)
+
+
+@app.post(
+    "/applications/{application_id}/training/complete"
+)
+def complete_application_training(
+    application_id: UUID,
+    payload: TrainingCompletionRequest,
+):
+    return complete_training(
+        application_id,
+        payload,
+    )
+
+
+@app.get(
+    "/applications/{application_id}/training/assignments"
+)
+def get_application_training_assignments(
+    application_id: UUID,
+):
+    return get_training_assignments(
+        application_id
+    )
+
+
+@app.post(
+    "/applications/{application_id}/training/automation/run"
+)
+def run_application_training_automation(
+    application_id: UUID,
+):
+    return assign_required_training(
+        application_id
+    )
+
+
+
+@app.get(
+    "/applications/{application_id}/training/status"
+)
+def get_application_training_status(
+    application_id: UUID,
+    subject_id: str,
+):
+    return get_training_status(
+        application_id,
+        subject_id,
+    )
+
+
+from .enterprise_handoff import (
+    EnterpriseDiscoveryHandoff,
+    persist_enterprise_discovery_handoff,
+)
+
+
+@app.post("/enterprise-discovery/handoff")
+def enterprise_discovery_handoff(
+    payload: EnterpriseDiscoveryHandoff,
+):
+    return persist_enterprise_discovery_handoff(
+        payload.model_dump()
+    )
+
+
+from .workflow_evidence import (
+    WorkflowSecurityMetadata,
+    persist_workflow_security_metadata,
+)
+
+
+@app.post(
+    "/applications/{application_id}/observed-workflow-security"
+)
+def ingest_observed_workflow_security(
+    application_id: UUID,
+    payload: WorkflowSecurityMetadata,
+):
+    return persist_workflow_security_metadata(
+        application_id,
+        payload,
+    )

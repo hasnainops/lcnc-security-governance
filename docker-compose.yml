@@ -37,7 +37,7 @@ services:
       opa:
         condition: service_started
     restart: unless-stopped
-  
+
   governance-portal:
     build:
       context: ./governance-portal
@@ -51,17 +51,17 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://127.0.0.1:8080/  > /dev/null || exit 1"
+          "wget -qO- http://127.0.0.1:8080/ > /dev/null || exit 1"
         ]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 5s
-    restart: unless-stopped  
+    restart: unless-stopped
 
   risk-engine:
     build:
-       context: ./risk-engine
+      context: ./risk-engine
     container_name: lcnc-risk-engine
     expose:
       - "8001"
@@ -85,24 +85,73 @@ services:
     container_name: lcnc-discovery
     environment:
       APPSMITH_BASE_URL: http://appsmith
-      APPSMITH_USER: ${APPSMITH_USER}
-      APPSMITH_PASSWORD: ${APPSMITH_PASSWORD}
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${APPSMITH_DISCOVERY_VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/appsmith_discovery_vault_secret_id
+      APPSMITH_VAULT_SECRET_PATH: secret/data/integrations/appsmith
       GOVERNANCE_API_URL: http://governance-api:8000
+      DISCOVERY_INTERVAL_SECONDS: "60"
+    secrets:
+      - appsmith_discovery_vault_secret_id
     depends_on:
       appsmith:
         condition: service_healthy
       governance-api:
         condition: service_healthy
-    profiles:
-      - discovery
-  
+      vault:
+        condition: service_healthy
+    networks:
+      - appsmith_restricted
+      - default
+    restart: unless-stopped
+
+  # --------------------------------------------------
+  # APPSMITH
+  #
+  # IMPORTANT:
+  # Appsmith remains ONLY on the internal network.
+  # Its host access is provided by appsmith-proxy.
+  # --------------------------------------------------
+
   appsmith:
     image: appsmith/appsmith-ce:v2.2
     container_name: lcnc-appsmith
-    ports:
-      - "127.0.0.1:8080:80"
+    expose:
+      - "80"
     volumes:
       - appsmith_data:/appsmith-stacks
+    networks:
+      - appsmith_restricted
+    restart: unless-stopped
+
+  # --------------------------------------------------
+  # APPSMITH EDGE PROXY
+  #
+  # This container has:
+  #   1. appsmith_restricted -> reaches Appsmith
+  #   2. appsmith_edge       -> allows host port publishing
+  #
+  # Appsmith itself NEVER joins appsmith_edge.
+  # --------------------------------------------------
+
+  appsmith-proxy:
+    image: caddy:2.11.4-alpine
+    container_name: lcnc-appsmith-proxy
+    command:
+      - caddy
+      - reverse-proxy
+      - --from
+      - :80
+      - --to
+      - http://appsmith:80
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      appsmith:
+        condition: service_healthy
+    networks:
+      - appsmith_restricted
+      - appsmith_edge
     restart: unless-stopped
 
   postgres:
@@ -115,11 +164,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./database/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
-
     healthcheck:
       test:
         [
-            
           "CMD-SHELL",
           "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
         ]
@@ -145,25 +192,84 @@ services:
     restart: unless-stopped
 
   governance-api:
-    build:
-      context: ./governance-api
+    image: caddy:2.11.4-alpine
     container_name: lcnc-governance-api
-    environment:
-      RISK_ENGINE_URL: http://risk-engine:8001
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      OPA_URL: http://opa:8181
-
-    volumes:
-      - ./compliance:/compliance:ro
+    command:
+      - caddy
+      - run
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./governance-api/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - appsmith_restricted
+      - default
+    depends_on:
+      governance-api-a:
+        condition: service_healthy
+      governance-api-b:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8000/health > /dev/null || exit 1"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  governance-api-a:
+    build:
+      context: ./governance-api
+    container_name: lcnc-governance-api-a
+    environment:
+      RISK_ENGINE_URL: http://risk-engine:8001
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/governance_api_vault_secret_id
+      VAULT_DB_ROLE: governance-api
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
+      OPA_URL: http://opa:8181
+      ML_ANALYTICS_URL: http://ml-analytics:8002
+      SECURITY_SCANNER_URL: http://security-scanner:8003
+      INTEGRATION_GATEWAY_URL: http://integration-gateway:8005
+      CONTROLLED_EGRESS_APPROVED_HOSTS: ${CONTROLLED_EGRESS_APPROVED_HOSTS:-example.com}
+      GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
+    volumes:
+      - ./compliance:/compliance:ro
+    secrets:
+      - governance_api_vault_secret_id
+    expose:
+      - "8000"
+    networks:
+      - default
     depends_on:
       risk-engine:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      vault:
+        condition: service_healthy
       opa:
         condition: service_started
+      ml-analytics:
+        condition: service_healthy
+      security-scanner:
+        condition: service_healthy
+      integration-gateway:
+        condition: service_healthy
+      governance-automation:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -178,8 +284,289 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  governance-api-b:
+    build:
+      context: ./governance-api
+    container_name: lcnc-governance-api-b
+    environment:
+      RISK_ENGINE_URL: http://risk-engine:8001
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/governance_api_vault_secret_id
+      VAULT_DB_ROLE: governance-api
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
+      OPA_URL: http://opa:8181
+      ML_ANALYTICS_URL: http://ml-analytics:8002
+      SECURITY_SCANNER_URL: http://security-scanner:8003
+      INTEGRATION_GATEWAY_URL: http://integration-gateway:8005
+      CONTROLLED_EGRESS_APPROVED_HOSTS: ${CONTROLLED_EGRESS_APPROVED_HOSTS:-example.com}
+      GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
+    volumes:
+      - ./compliance:/compliance:ro
+    secrets:
+      - governance_api_vault_secret_id
+    expose:
+      - "8000"
+    networks:
+      - default
+    depends_on:
+      risk-engine:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+      opa:
+        condition: service_started
+      ml-analytics:
+        condition: service_healthy
+      security-scanner:
+        condition: service_healthy
+      integration-gateway:
+        condition: service_healthy
+      governance-automation:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  ml-analytics:
+    build:
+      context: ./ml-analytics
+    container_name: lcnc-ml-analytics
+    ports:
+      - "127.0.0.1:8002:8002"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  security-scanner:
+    build:
+      context: ./security-scanner
+    container_name: lcnc-security-scanner
+    expose:
+      - "8003"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  dlp-engine:
+    build:
+      context: ./dlp-engine
+    container_name: lcnc-dlp-engine
+    ports:
+      - "127.0.0.1:8004:8004"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8004/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  integration-gateway:
+    build:
+      context: ./integration-gateway
+    container_name: lcnc-integration-gateway
+    environment:
+      DLP_ENGINE_URL: http://dlp-engine:8004
+      GATEWAY_RATE_LIMIT_PER_MINUTE: ${GATEWAY_RATE_LIMIT_PER_MINUTE:-60}
+    expose:
+      - "8005"
+    depends_on:
+      dlp-engine:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8005/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  enterprise-discovery:
+    build:
+      context: ./enterprise-discovery
+    container_name: lcnc-enterprise-discovery
+    environment:
+      ML_ANALYTICS_URL: http://ml-analytics:8002
+      GOVERNANCE_API_URL: http://governance-api:8000
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${ENTERPRISE_DISCOVERY_VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/enterprise_discovery_vault_secret_id
+      VAULT_DB_ROLE: enterprise-discovery
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
+    secrets:
+      - enterprise_discovery_vault_secret_id
+    ports:
+      - "127.0.0.1:8006:8006"
+    depends_on:
+      ml-analytics:
+        condition: service_healthy
+      governance-api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8006/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  governance-automation:
+    build:
+      context: ./governance-automation
+    container_name: lcnc-governance-automation
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${GOVERNANCE_AUTOMATION_VAULT_ROLE_ID}
+      VAULT_SECRET_ID_FILE: /run/secrets/governance_automation_vault_secret_id
+      VAULT_DB_ROLE: governance-automation
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SSLMODE: disable
+      ESCALATION_INTERVAL_SECONDS: "30"
+    secrets:
+      - governance_automation_vault_secret_id
+    ports:
+      - "127.0.0.1:8007:8007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8007/health')"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: lcnc-vault
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+    ports:
+      - "127.0.0.1:8200:8200"
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test:
+        - CMD
+        - vault
+        - status
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  sonarqube:
+    image: sonarqube:26.7.0.124771-community
+    container_name: lcnc-sonarqube
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    restart: unless-stopped
+
 volumes:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
   postgres_data:
   appsmith_data:
   prometheus_data:
   grafana_data:
+
+networks:
+
+  # Appsmith itself has NO external connectivity.
+  appsmith_restricted:
+    driver: bridge
+    internal: true
+
+  # Only the Appsmith reverse proxy uses this network.
+  # It exists specifically so Docker can publish 127.0.0.1:8080.
+  appsmith_edge:
+    driver: bridge
+
+secrets:
+  governance_api_vault_secret_id:
+    file: ./.runtime-secrets/governance-api-secret-id
+
+  enterprise_discovery_vault_secret_id:
+    file: ./.runtime-secrets/enterprise-discovery-secret-id
+
+  governance_automation_vault_secret_id:
+    file: ./.runtime-secrets/governance-automation-secret-id
+
+  appsmith_discovery_vault_secret_id:
+    file: ./.runtime-secrets/appsmith-discovery-secret-id

@@ -1,0 +1,481 @@
+application_name,business_purpose,data_fields,connector_metadata,expected_classification
+Press Release Tracker,Provide public marketing and product information,product_name description public_price,public content feed,public
+Secrets Rotation Workflow,Support privileged access administration,bank_account routing_number payment_token,privileged access system,restricted
+Privileged Access Manager,Support privileged access administration,card_number expiry_date cvv account_holder,secret management service,restricted
+Customer Operations Portal,Process customer records for approved support operations,customer_id contact_email address,CRM API,confidential
+Financial Card Processing App,Handle restricted financial transaction data,bank_account routing_number payment_token,secret management service,restricted
+Operations Task Board,Manage internal department planning,department cost_center internal_notes,enterprise directory,internal
+Client Contact Manager,Support customer account servicing,account_id email billing_address phone,CRM API,confidential
+Privileged Access Manager,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,privileged access system,restricted
+Marketing Campaign Page,Publish information intended for external audiences,product_name description public_price,public content feed,public
+Payment Administration Tool,Process highly sensitive payment information,password access_token secret_key,privileged access system,restricted
+Press Release Tracker,Display public events and announcements,event_name event_date venue public_link,public content feed,public
+Customer Operations Portal,Analyze customer operational records,client_name phone_number support_case,approved customer service API,confidential
+Financial Card Processing App,Support privileged access administration,bank_account routing_number payment_token,restricted financial API,restricted
+Customer Service Workspace,Support customer account servicing,customer_id contact_email address,approved customer service API,confidential
+Public Product Catalog,Share approved public content with customers,product_name description public_price,approved marketing API,public
+Public Product Catalog,Provide public marketing and product information,headline summary publication_date,public website,public
+Public Event Directory,Provide public marketing and product information,product_name description public_price,public website,public
+Financial Card Processing App,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,secret management service,restricted
+Public Event Directory,Share approved public content with customers,headline summary publication_date,approved marketing API,public
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,department cost_center internal_notes,enterprise directory,internal
+Internal Project Tracker,Manage internal department planning,department cost_center internal_notes,internal database,internal
+Financial Card Processing App,Manage privileged credentials and secrets,bank_account routing_number payment_token,privileged access system,restricted
+Marketing Campaign Page,Provide public marketing and product information,product_name description public_price,approved marketing API,public
+Client Contact Manager,Process customer records for approved support operations,customer_name email phone customer_id,approved customer service API,confidential
+Press Release Tracker,Publish information intended for external audiences,event_name event_date venue public_link,public content feed,public
+Privileged Access Manager,Support privileged access administration,api_secret privileged_account credential,privileged access system,restricted
+Customer Service Workspace,Support customer account servicing,account_id email billing_address phone,CRM API,confidential
+Customer Data Export,Process customer records for approved support operations,client_name phone_number support_case,CRM API,confidential
+Client Contact Manager,Analyze customer operational records,customer_id contact_email address,approved customer service API,confidential
+Public Event Directory,Display public events and announcements,product_name description public_price,approved marketing API,public
+Privileged Access Manager,Manage privileged credentials and secrets,bank_account routing_number payment_token,secret management service,restricted
+Public Event Directory,Display public events and announcements,event_name event_date venue public_link,public CMS,public
+Secrets Rotation Workflow,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,payment processor,restricted
+Payment Administration Tool,Handle restricted financial transaction data,api_secret privileged_account credential,secret management service,restricted
+Secrets Rotation Workflow,Handle restricted financial transaction data,password access_token secret_key,payment processor,restricted
+Public Event Directory,Display public events and announcements,product_name description public_price,public CMS,public
+Customer Data Export,Analyze customer operational records,customer_id contact_email address,customer support platform,confidential
+Department Planning App,Manage internal department planning,employee_name department task_status,corporate workflow API,internal
+Financial Card Processing App,Process highly sensitive payment information,api_secret privileged_account credential,privileged access system,restricted
+Public Product Catalog,Publish information intended for external audiences,product_name description public_price,approved marketing API,public
+Client Contact Manager,Manage customer contact information,account_id email billing_address phone,approved customer service API,confidential
+Department Planning App,Manage internal department planning,asset_type employee_id approval_status,corporate workflow API,internal
+Press Release Tracker,Display public events and announcements,title description category public_url,public CMS,public
+Internal Project Tracker,Manage internal department planning,project_code owner team deadline,internal database,internal
+Public Event Directory,Share approved public content with customers,product_name description public_price,public CMS,public
+Account Support Dashboard,Process customer records for approved support operations,client_name phone_number support_case,approved customer service API,confidential
+Secrets Rotation Workflow,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,secret management service,restricted
+Public Product Catalog,Publish information intended for external audiences,event_name event_date venue public_link,public content feed,public
+Operations Task Board,Coordinate employee workflow and project tasks,employee_name department task_status,corporate workflow API,internal
+Public Event Directory,Provide public marketing and product information,product_name description public_price,public website,public
+Credential Operations Workflow,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Customer Service Workspace,Process customer records for approved support operations,account_id email billing_address phone,CRM API,confidential
+Financial Card Processing App,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,secret management service,restricted
+Privileged Access Manager,Process highly sensitive payment information,card_number expiry_date cvv account_holder,payment processor,restricted
+Client Contact Manager,Support customer account servicing,client_name phone_number support_case,approved customer service API,confidential
+Client Contact Manager,Manage customer contact information,client_name phone_number support_case,approved customer service API,confidential
+Public Event Directory,Share approved public content with customers,product_name description public_price,approved marketing API,public
+Public Product Catalog,Share approved public content with customers,event_name event_date venue public_link,public website,public
+Payment Administration Tool,Support privileged access administration,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Public Product Catalog,Publish information intended for external audiences,product_name description public_price,public content feed,public
+Privileged Access Manager,Process highly sensitive payment information,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Customer Data Export,Manage customer contact information,customer_id contact_email address,customer support platform,confidential
+Public Event Directory,Provide public marketing and product information,title description category public_url,public content feed,public
+Operations Task Board,Track internal requests and operational activities,department cost_center internal_notes,corporate workflow API,internal
+Internal Project Tracker,Support internal business operations,project_code owner team deadline,internal ticketing system,internal
+Account Support Dashboard,Support customer account servicing,client_name phone_number support_case,customer database,confidential
+Customer Service Workspace,Support customer account servicing,customer_name email phone customer_id,customer support platform,confidential
+Public Event Directory,Display public events and announcements,event_name event_date venue public_link,approved marketing API,public
+Public Product Catalog,Provide public marketing and product information,headline summary publication_date,approved marketing API,public
+Internal Project Tracker,Support internal business operations,asset_type employee_id approval_status,internal ticketing system,internal
+Account Support Dashboard,Analyze customer operational records,client_name phone_number support_case,customer database,confidential
+Community Information Portal,Share approved public content with customers,headline summary publication_date,public CMS,public
+Operations Task Board,Support internal business operations,department cost_center internal_notes,enterprise directory,internal
+Employee Equipment Request,Manage internal department planning,project_code owner team deadline,enterprise directory,internal
+Employee Equipment Request,Coordinate employee workflow and project tasks,employee_name department task_status,internal database,internal
+Operations Task Board,Track internal requests and operational activities,employee_name department task_status,internal database,internal
+Account Support Dashboard,Manage customer contact information,client_name phone_number support_case,approved customer service API,confidential
+Privileged Access Manager,Handle restricted financial transaction data,api_secret privileged_account credential,payment processor,restricted
+Client Contact Manager,Manage customer contact information,client_name phone_number support_case,customer database,confidential
+Marketing Campaign Page,Display public events and announcements,title description category public_url,public CMS,public
+Credential Operations Workflow,Handle restricted financial transaction data,password access_token secret_key,privileged access system,restricted
+Press Release Tracker,Share approved public content with customers,event_name event_date venue public_link,public CMS,public
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,internal ticketing system,internal
+Credential Operations Workflow,Handle restricted financial transaction data,api_secret privileged_account credential,secret management service,restricted
+Marketing Campaign Page,Publish information intended for external audiences,product_name description public_price,public content feed,public
+Customer Operations Portal,Analyze customer operational records,client_name phone_number support_case,customer database,confidential
+Client Contact Manager,Support customer account servicing,account_id email billing_address phone,customer support platform,confidential
+Community Information Portal,Provide public marketing and product information,headline summary publication_date,public content feed,public
+Client Contact Manager,Support customer account servicing,customer_name email phone customer_id,customer database,confidential
+Internal Project Tracker,Support internal business operations,employee_name department task_status,internal database,internal
+Privileged Access Manager,Process highly sensitive payment information,bank_account routing_number payment_token,restricted financial API,restricted
+Internal Project Tracker,Coordinate employee workflow and project tasks,employee_name department task_status,internal ticketing system,internal
+Department Planning App,Coordinate employee workflow and project tasks,employee_name department task_status,corporate workflow API,internal
+Payment Administration Tool,Support privileged access administration,password access_token secret_key,secret management service,restricted
+Press Release Tracker,Publish information intended for external audiences,headline summary publication_date,public website,public
+Payment Administration Tool,Manage privileged credentials and secrets,bank_account routing_number payment_token,secret management service,restricted
+Department Planning App,Manage internal department planning,asset_type employee_id approval_status,internal database,internal
+Employee Equipment Request,Manage internal department planning,asset_type employee_id approval_status,corporate workflow API,internal
+Secrets Rotation Workflow,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Marketing Campaign Page,Publish information intended for external audiences,title description category public_url,public website,public
+Financial Card Processing App,Handle restricted financial transaction data,bank_account routing_number payment_token,privileged access system,restricted
+Privileged Access Manager,Support privileged access administration,api_secret privileged_account credential,secret management service,restricted
+Operations Task Board,Support internal business operations,project_code owner team deadline,internal database,internal
+Financial Card Processing App,Support privileged access administration,password access_token secret_key,restricted financial API,restricted
+Department Planning App,Support internal business operations,employee_name department task_status,enterprise directory,internal
+Internal Project Tracker,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,enterprise directory,internal
+Credential Operations Workflow,Manage privileged credentials and secrets,password access_token secret_key,payment processor,restricted
+Community Information Portal,Display public events and announcements,event_name event_date venue public_link,public CMS,public
+Secrets Rotation Workflow,Process highly sensitive payment information,bank_account routing_number payment_token,restricted financial API,restricted
+Public Product Catalog,Provide public marketing and product information,title description category public_url,approved marketing API,public
+Employee Equipment Request,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,internal database,internal
+Credential Operations Workflow,Handle restricted financial transaction data,bank_account routing_number payment_token,privileged access system,restricted
+Employee Equipment Request,Coordinate employee workflow and project tasks,department cost_center internal_notes,internal database,internal
+Secrets Rotation Workflow,Process highly sensitive payment information,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Credential Operations Workflow,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Public Product Catalog,Publish information intended for external audiences,event_name event_date venue public_link,public CMS,public
+Internal Project Tracker,Track internal requests and operational activities,employee_name department task_status,internal ticketing system,internal
+Account Support Dashboard,Manage customer contact information,client_name phone_number support_case,approved customer service API,confidential
+Credential Operations Workflow,Process highly sensitive payment information,bank_account routing_number payment_token,payment processor,restricted
+Marketing Campaign Page,Share approved public content with customers,product_name description public_price,public website,public
+Public Event Directory,Provide public marketing and product information,headline summary publication_date,public website,public
+Press Release Tracker,Share approved public content with customers,event_name event_date venue public_link,approved marketing API,public
+Financial Card Processing App,Manage privileged credentials and secrets,bank_account routing_number payment_token,payment processor,restricted
+Press Release Tracker,Provide public marketing and product information,headline summary publication_date,public CMS,public
+Press Release Tracker,Share approved public content with customers,title description category public_url,public CMS,public
+Press Release Tracker,Provide public marketing and product information,title description category public_url,public CMS,public
+Internal Project Tracker,Coordinate employee workflow and project tasks,department cost_center internal_notes,corporate workflow API,internal
+Customer Operations Portal,Process customer records for approved support operations,customer_id contact_email address,CRM API,confidential
+Payment Administration Tool,Support privileged access administration,card_number expiry_date cvv account_holder,secret management service,restricted
+Credential Operations Workflow,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,privileged access system,restricted
+Community Information Portal,Share approved public content with customers,event_name event_date venue public_link,approved marketing API,public
+Account Support Dashboard,Process customer records for approved support operations,customer_name email phone customer_id,approved customer service API,confidential
+Internal Knowledge Workflow,Support internal business operations,asset_type employee_id approval_status,internal database,internal
+Press Release Tracker,Provide public marketing and product information,headline summary publication_date,approved marketing API,public
+Internal Project Tracker,Support internal business operations,asset_type employee_id approval_status,enterprise directory,internal
+Customer Service Workspace,Manage customer contact information,customer_id contact_email address,approved customer service API,confidential
+Payment Administration Tool,Support privileged access administration,card_number expiry_date cvv account_holder,secret management service,restricted
+Public Product Catalog,Provide public marketing and product information,title description category public_url,public CMS,public
+Public Event Directory,Display public events and announcements,title description category public_url,public content feed,public
+Press Release Tracker,Publish information intended for external audiences,event_name event_date venue public_link,public content feed,public
+Public Product Catalog,Provide public marketing and product information,headline summary publication_date,approved marketing API,public
+Payment Administration Tool,Process highly sensitive payment information,card_number expiry_date cvv account_holder,privileged access system,restricted
+Privileged Access Manager,Support privileged access administration,card_number expiry_date cvv account_holder,payment processor,restricted
+Community Information Portal,Display public events and announcements,product_name description public_price,public CMS,public
+Secrets Rotation Workflow,Handle restricted financial transaction data,bank_account routing_number payment_token,restricted financial API,restricted
+Public Event Directory,Share approved public content with customers,title description category public_url,public content feed,public
+Press Release Tracker,Provide public marketing and product information,title description category public_url,approved marketing API,public
+Customer Service Workspace,Manage customer contact information,client_name phone_number support_case,approved customer service API,confidential
+Customer Operations Portal,Support customer account servicing,customer_id contact_email address,customer support platform,confidential
+Public Event Directory,Publish information intended for external audiences,title description category public_url,public website,public
+Customer Data Export,Analyze customer operational records,customer_name email phone customer_id,customer database,confidential
+Operations Task Board,Track internal requests and operational activities,asset_type employee_id approval_status,corporate workflow API,internal
+Community Information Portal,Display public events and announcements,headline summary publication_date,public content feed,public
+Public Product Catalog,Provide public marketing and product information,event_name event_date venue public_link,public website,public
+Credential Operations Workflow,Support privileged access administration,bank_account routing_number payment_token,privileged access system,restricted
+Press Release Tracker,Publish information intended for external audiences,event_name event_date venue public_link,public website,public
+Press Release Tracker,Publish information intended for external audiences,headline summary publication_date,approved marketing API,public
+Operations Task Board,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,corporate workflow API,internal
+Privileged Access Manager,Support privileged access administration,api_secret privileged_account credential,restricted financial API,restricted
+Public Product Catalog,Provide public marketing and product information,product_name description public_price,public CMS,public
+Public Event Directory,Share approved public content with customers,headline summary publication_date,public website,public
+Client Contact Manager,Support customer account servicing,customer_name email phone customer_id,approved customer service API,confidential
+Secrets Rotation Workflow,Support privileged access administration,bank_account routing_number payment_token,restricted financial API,restricted
+Department Planning App,Track internal requests and operational activities,department cost_center internal_notes,internal database,internal
+Customer Data Export,Analyze customer operational records,customer_id contact_email address,customer support platform,confidential
+Payment Administration Tool,Support privileged access administration,card_number expiry_date cvv account_holder,payment processor,restricted
+Client Contact Manager,Manage customer contact information,customer_id contact_email address,approved customer service API,confidential
+Customer Service Workspace,Process customer records for approved support operations,client_name phone_number support_case,customer support platform,confidential
+Department Planning App,Coordinate employee workflow and project tasks,project_code owner team deadline,corporate workflow API,internal
+Secrets Rotation Workflow,Handle restricted financial transaction data,api_secret privileged_account credential,restricted financial API,restricted
+Department Planning App,Support internal business operations,employee_name department task_status,internal database,internal
+Customer Service Workspace,Manage customer contact information,customer_name email phone customer_id,approved customer service API,confidential
+Community Information Portal,Share approved public content with customers,event_name event_date venue public_link,public website,public
+Internal Project Tracker,Track internal requests and operational activities,department cost_center internal_notes,enterprise directory,internal
+Internal Knowledge Workflow,Support internal business operations,asset_type employee_id approval_status,internal ticketing system,internal
+Financial Card Processing App,Process highly sensitive payment information,password access_token secret_key,payment processor,restricted
+Department Planning App,Track internal requests and operational activities,employee_name department task_status,internal database,internal
+Employee Equipment Request,Support internal business operations,department cost_center internal_notes,internal database,internal
+Public Product Catalog,Display public events and announcements,title description category public_url,approved marketing API,public
+Operations Task Board,Manage internal department planning,project_code owner team deadline,internal ticketing system,internal
+Internal Project Tracker,Manage internal department planning,employee_name department task_status,internal database,internal
+Customer Service Workspace,Support customer account servicing,account_id email billing_address phone,approved customer service API,confidential
+Department Planning App,Manage internal department planning,department cost_center internal_notes,corporate workflow API,internal
+Credential Operations Workflow,Process highly sensitive payment information,api_secret privileged_account credential,privileged access system,restricted
+Credential Operations Workflow,Handle restricted financial transaction data,api_secret privileged_account credential,restricted financial API,restricted
+Marketing Campaign Page,Display public events and announcements,event_name event_date venue public_link,public CMS,public
+Privileged Access Manager,Process highly sensitive payment information,bank_account routing_number payment_token,privileged access system,restricted
+Internal Project Tracker,Track internal requests and operational activities,employee_name department task_status,internal database,internal
+Client Contact Manager,Support customer account servicing,account_id email billing_address phone,customer database,confidential
+Employee Equipment Request,Track internal requests and operational activities,department cost_center internal_notes,internal database,internal
+Press Release Tracker,Provide public marketing and product information,event_name event_date venue public_link,public website,public
+Account Support Dashboard,Process customer records for approved support operations,account_id email billing_address phone,customer database,confidential
+Financial Card Processing App,Process highly sensitive payment information,password access_token secret_key,secret management service,restricted
+Employee Equipment Request,Manage internal department planning,asset_type employee_id approval_status,corporate workflow API,internal
+Press Release Tracker,Publish information intended for external audiences,product_name description public_price,public website,public
+Customer Data Export,Analyze customer operational records,client_name phone_number support_case,customer support platform,confidential
+Payment Administration Tool,Process highly sensitive payment information,bank_account routing_number payment_token,restricted financial API,restricted
+Payment Administration Tool,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Account Support Dashboard,Process customer records for approved support operations,account_id email billing_address phone,customer database,confidential
+Account Support Dashboard,Support customer account servicing,customer_id contact_email address,approved customer service API,confidential
+Customer Data Export,Support customer account servicing,customer_id contact_email address,CRM API,confidential
+Payment Administration Tool,Process highly sensitive payment information,password access_token secret_key,payment processor,restricted
+Privileged Access Manager,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,privileged access system,restricted
+Secrets Rotation Workflow,Support privileged access administration,card_number expiry_date cvv account_holder,payment processor,restricted
+Press Release Tracker,Display public events and announcements,title description category public_url,public website,public
+Operations Task Board,Track internal requests and operational activities,employee_name department task_status,internal ticketing system,internal
+Internal Knowledge Workflow,Manage internal department planning,department cost_center internal_notes,enterprise directory,internal
+Customer Service Workspace,Process customer records for approved support operations,account_id email billing_address phone,customer support platform,confidential
+Internal Project Tracker,Support internal business operations,employee_name department task_status,enterprise directory,internal
+Customer Operations Portal,Analyze customer operational records,customer_name email phone customer_id,customer database,confidential
+Account Support Dashboard,Manage customer contact information,client_name phone_number support_case,CRM API,confidential
+Community Information Portal,Provide public marketing and product information,event_name event_date venue public_link,public content feed,public
+Public Product Catalog,Share approved public content with customers,event_name event_date venue public_link,public CMS,public
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,department cost_center internal_notes,internal ticketing system,internal
+Financial Card Processing App,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Community Information Portal,Share approved public content with customers,event_name event_date venue public_link,public CMS,public
+Customer Operations Portal,Analyze customer operational records,account_id email billing_address phone,approved customer service API,confidential
+Account Support Dashboard,Analyze customer operational records,customer_id contact_email address,customer support platform,confidential
+Operations Task Board,Coordinate employee workflow and project tasks,employee_name department task_status,internal ticketing system,internal
+Internal Knowledge Workflow,Manage internal department planning,asset_type employee_id approval_status,internal database,internal
+Operations Task Board,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,internal ticketing system,internal
+Privileged Access Manager,Process highly sensitive payment information,password access_token secret_key,privileged access system,restricted
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,enterprise directory,internal
+Client Contact Manager,Process customer records for approved support operations,customer_id contact_email address,customer database,confidential
+Public Event Directory,Display public events and announcements,product_name description public_price,approved marketing API,public
+Financial Card Processing App,Process highly sensitive payment information,bank_account routing_number payment_token,secret management service,restricted
+Marketing Campaign Page,Publish information intended for external audiences,title description category public_url,public content feed,public
+Press Release Tracker,Publish information intended for external audiences,title description category public_url,public website,public
+Press Release Tracker,Provide public marketing and product information,event_name event_date venue public_link,public content feed,public
+Secrets Rotation Workflow,Support privileged access administration,card_number expiry_date cvv account_holder,privileged access system,restricted
+Department Planning App,Support internal business operations,department cost_center internal_notes,internal ticketing system,internal
+Secrets Rotation Workflow,Process highly sensitive payment information,password access_token secret_key,secret management service,restricted
+Client Contact Manager,Analyze customer operational records,client_name phone_number support_case,approved customer service API,confidential
+Internal Knowledge Workflow,Manage internal department planning,project_code owner team deadline,corporate workflow API,internal
+Customer Data Export,Manage customer contact information,customer_id contact_email address,customer support platform,confidential
+Customer Data Export,Process customer records for approved support operations,customer_name email phone customer_id,customer database,confidential
+Financial Card Processing App,Process highly sensitive payment information,card_number expiry_date cvv account_holder,payment processor,restricted
+Operations Task Board,Support internal business operations,project_code owner team deadline,enterprise directory,internal
+Public Event Directory,Display public events and announcements,title description category public_url,public content feed,public
+Operations Task Board,Manage internal department planning,asset_type employee_id approval_status,internal database,internal
+Employee Equipment Request,Manage internal department planning,asset_type employee_id approval_status,internal ticketing system,internal
+Customer Data Export,Analyze customer operational records,account_id email billing_address phone,approved customer service API,confidential
+Department Planning App,Manage internal department planning,department cost_center internal_notes,enterprise directory,internal
+Marketing Campaign Page,Publish information intended for external audiences,product_name description public_price,public CMS,public
+Public Event Directory,Display public events and announcements,event_name event_date venue public_link,public content feed,public
+Privileged Access Manager,Manage privileged credentials and secrets,bank_account routing_number payment_token,secret management service,restricted
+Public Product Catalog,Display public events and announcements,title description category public_url,public website,public
+Payment Administration Tool,Manage privileged credentials and secrets,password access_token secret_key,privileged access system,restricted
+Internal Knowledge Workflow,Track internal requests and operational activities,project_code owner team deadline,corporate workflow API,internal
+Customer Operations Portal,Analyze customer operational records,customer_id contact_email address,approved customer service API,confidential
+Public Event Directory,Publish information intended for external audiences,title description category public_url,public CMS,public
+Employee Equipment Request,Support internal business operations,employee_name department task_status,corporate workflow API,internal
+Operations Task Board,Track internal requests and operational activities,department cost_center internal_notes,corporate workflow API,internal
+Secrets Rotation Workflow,Manage privileged credentials and secrets,password access_token secret_key,secret management service,restricted
+Credential Operations Workflow,Support privileged access administration,api_secret privileged_account credential,restricted financial API,restricted
+Client Contact Manager,Process customer records for approved support operations,customer_id contact_email address,customer database,confidential
+Press Release Tracker,Publish information intended for external audiences,product_name description public_price,public website,public
+Secrets Rotation Workflow,Process highly sensitive payment information,bank_account routing_number payment_token,payment processor,restricted
+Internal Knowledge Workflow,Track internal requests and operational activities,department cost_center internal_notes,enterprise directory,internal
+Department Planning App,Manage internal department planning,employee_name department task_status,internal ticketing system,internal
+Employee Equipment Request,Manage internal department planning,employee_name department task_status,enterprise directory,internal
+Account Support Dashboard,Support customer account servicing,customer_id contact_email address,customer database,confidential
+Customer Data Export,Process customer records for approved support operations,account_id email billing_address phone,CRM API,confidential
+Client Contact Manager,Analyze customer operational records,account_id email billing_address phone,approved customer service API,confidential
+Account Support Dashboard,Analyze customer operational records,customer_name email phone customer_id,customer database,confidential
+Customer Service Workspace,Analyze customer operational records,account_id email billing_address phone,customer database,confidential
+Financial Card Processing App,Process highly sensitive payment information,password access_token secret_key,payment processor,restricted
+Credential Operations Workflow,Process highly sensitive payment information,api_secret privileged_account credential,payment processor,restricted
+Internal Project Tracker,Track internal requests and operational activities,department cost_center internal_notes,enterprise directory,internal
+Account Support Dashboard,Process customer records for approved support operations,customer_name email phone customer_id,customer database,confidential
+Operations Task Board,Manage internal department planning,asset_type employee_id approval_status,internal ticketing system,internal
+Financial Card Processing App,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,payment processor,restricted
+Operations Task Board,Track internal requests and operational activities,asset_type employee_id approval_status,internal ticketing system,internal
+Department Planning App,Support internal business operations,project_code owner team deadline,internal ticketing system,internal
+Credential Operations Workflow,Process highly sensitive payment information,bank_account routing_number payment_token,payment processor,restricted
+Customer Service Workspace,Manage customer contact information,customer_name email phone customer_id,customer database,confidential
+Customer Operations Portal,Process customer records for approved support operations,account_id email billing_address phone,CRM API,confidential
+Payment Administration Tool,Support privileged access administration,password access_token secret_key,secret management service,restricted
+Customer Service Workspace,Process customer records for approved support operations,account_id email billing_address phone,CRM API,confidential
+Customer Operations Portal,Support customer account servicing,client_name phone_number support_case,customer database,confidential
+Credential Operations Workflow,Support privileged access administration,api_secret privileged_account credential,payment processor,restricted
+Customer Data Export,Analyze customer operational records,customer_id contact_email address,customer support platform,confidential
+Credential Operations Workflow,Process highly sensitive payment information,password access_token secret_key,privileged access system,restricted
+Public Product Catalog,Provide public marketing and product information,headline summary publication_date,public CMS,public
+Operations Task Board,Coordinate employee workflow and project tasks,employee_name department task_status,internal ticketing system,internal
+Account Support Dashboard,Manage customer contact information,customer_name email phone customer_id,approved customer service API,confidential
+Client Contact Manager,Manage customer contact information,client_name phone_number support_case,customer database,confidential
+Customer Operations Portal,Support customer account servicing,client_name phone_number support_case,approved customer service API,confidential
+Financial Card Processing App,Handle restricted financial transaction data,password access_token secret_key,secret management service,restricted
+Customer Data Export,Process customer records for approved support operations,customer_id contact_email address,customer database,confidential
+Employee Equipment Request,Track internal requests and operational activities,project_code owner team deadline,enterprise directory,internal
+Payment Administration Tool,Manage privileged credentials and secrets,password access_token secret_key,privileged access system,restricted
+Internal Knowledge Workflow,Track internal requests and operational activities,employee_name department task_status,corporate workflow API,internal
+Department Planning App,Support internal business operations,project_code owner team deadline,internal ticketing system,internal
+Operations Task Board,Support internal business operations,employee_name department task_status,corporate workflow API,internal
+Client Contact Manager,Manage customer contact information,customer_name email phone customer_id,approved customer service API,confidential
+Operations Task Board,Track internal requests and operational activities,asset_type employee_id approval_status,internal ticketing system,internal
+Community Information Portal,Publish information intended for external audiences,product_name description public_price,approved marketing API,public
+Employee Equipment Request,Manage internal department planning,project_code owner team deadline,enterprise directory,internal
+Customer Service Workspace,Analyze customer operational records,client_name phone_number support_case,approved customer service API,confidential
+Operations Task Board,Support internal business operations,employee_name department task_status,internal ticketing system,internal
+Privileged Access Manager,Handle restricted financial transaction data,password access_token secret_key,payment processor,restricted
+Client Contact Manager,Manage customer contact information,customer_id contact_email address,customer support platform,confidential
+Employee Equipment Request,Support internal business operations,department cost_center internal_notes,internal ticketing system,internal
+Customer Operations Portal,Manage customer contact information,client_name phone_number support_case,customer support platform,confidential
+Secrets Rotation Workflow,Process highly sensitive payment information,api_secret privileged_account credential,privileged access system,restricted
+Public Event Directory,Share approved public content with customers,title description category public_url,public content feed,public
+Customer Data Export,Analyze customer operational records,account_id email billing_address phone,CRM API,confidential
+Customer Data Export,Support customer account servicing,customer_id contact_email address,customer support platform,confidential
+Internal Project Tracker,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,internal database,internal
+Financial Card Processing App,Support privileged access administration,card_number expiry_date cvv account_holder,privileged access system,restricted
+Community Information Portal,Publish information intended for external audiences,headline summary publication_date,public content feed,public
+Privileged Access Manager,Support privileged access administration,api_secret privileged_account credential,privileged access system,restricted
+Community Information Portal,Publish information intended for external audiences,event_name event_date venue public_link,public CMS,public
+Client Contact Manager,Analyze customer operational records,customer_id contact_email address,CRM API,confidential
+Community Information Portal,Provide public marketing and product information,product_name description public_price,public content feed,public
+Customer Operations Portal,Process customer records for approved support operations,account_id email billing_address phone,customer database,confidential
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,corporate workflow API,internal
+Employee Equipment Request,Coordinate employee workflow and project tasks,department cost_center internal_notes,enterprise directory,internal
+Community Information Portal,Display public events and announcements,headline summary publication_date,public website,public
+Press Release Tracker,Publish information intended for external audiences,event_name event_date venue public_link,approved marketing API,public
+Public Product Catalog,Provide public marketing and product information,product_name description public_price,public content feed,public
+Internal Knowledge Workflow,Support internal business operations,department cost_center internal_notes,enterprise directory,internal
+Internal Knowledge Workflow,Track internal requests and operational activities,department cost_center internal_notes,corporate workflow API,internal
+Payment Administration Tool,Process highly sensitive payment information,api_secret privileged_account credential,secret management service,restricted
+Payment Administration Tool,Support privileged access administration,card_number expiry_date cvv account_holder,payment processor,restricted
+Department Planning App,Track internal requests and operational activities,employee_name department task_status,internal database,internal
+Public Event Directory,Display public events and announcements,headline summary publication_date,public website,public
+Public Product Catalog,Provide public marketing and product information,headline summary publication_date,public CMS,public
+Customer Service Workspace,Manage customer contact information,client_name phone_number support_case,CRM API,confidential
+Credential Operations Workflow,Process highly sensitive payment information,api_secret privileged_account credential,restricted financial API,restricted
+Financial Card Processing App,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,payment processor,restricted
+Internal Knowledge Workflow,Manage internal department planning,department cost_center internal_notes,enterprise directory,internal
+Public Product Catalog,Display public events and announcements,event_name event_date venue public_link,public website,public
+Privileged Access Manager,Support privileged access administration,password access_token secret_key,restricted financial API,restricted
+Internal Knowledge Workflow,Support internal business operations,asset_type employee_id approval_status,enterprise directory,internal
+Account Support Dashboard,Support customer account servicing,account_id email billing_address phone,approved customer service API,confidential
+Customer Data Export,Manage customer contact information,customer_name email phone customer_id,CRM API,confidential
+Credential Operations Workflow,Process highly sensitive payment information,api_secret privileged_account credential,payment processor,restricted
+Public Product Catalog,Publish information intended for external audiences,headline summary publication_date,approved marketing API,public
+Customer Operations Portal,Process customer records for approved support operations,customer_name email phone customer_id,customer database,confidential
+Privileged Access Manager,Support privileged access administration,bank_account routing_number payment_token,secret management service,restricted
+Press Release Tracker,Display public events and announcements,event_name event_date venue public_link,public CMS,public
+Operations Task Board,Track internal requests and operational activities,project_code owner team deadline,internal database,internal
+Payment Administration Tool,Manage privileged credentials and secrets,password access_token secret_key,secret management service,restricted
+Department Planning App,Support internal business operations,project_code owner team deadline,enterprise directory,internal
+Internal Project Tracker,Manage internal department planning,project_code owner team deadline,internal ticketing system,internal
+Marketing Campaign Page,Share approved public content with customers,product_name description public_price,public CMS,public
+Customer Operations Portal,Analyze customer operational records,customer_id contact_email address,approved customer service API,confidential
+Department Planning App,Manage internal department planning,employee_name department task_status,enterprise directory,internal
+Community Information Portal,Publish information intended for external audiences,headline summary publication_date,approved marketing API,public
+Marketing Campaign Page,Provide public marketing and product information,product_name description public_price,public content feed,public
+Public Product Catalog,Share approved public content with customers,product_name description public_price,public content feed,public
+Customer Data Export,Process customer records for approved support operations,customer_id contact_email address,CRM API,confidential
+Account Support Dashboard,Analyze customer operational records,customer_id contact_email address,customer database,confidential
+Internal Project Tracker,Coordinate employee workflow and project tasks,asset_type employee_id approval_status,enterprise directory,internal
+Financial Card Processing App,Manage privileged credentials and secrets,password access_token secret_key,secret management service,restricted
+Public Product Catalog,Share approved public content with customers,event_name event_date venue public_link,public CMS,public
+Privileged Access Manager,Process highly sensitive payment information,bank_account routing_number payment_token,privileged access system,restricted
+Department Planning App,Track internal requests and operational activities,project_code owner team deadline,internal database,internal
+Client Contact Manager,Analyze customer operational records,account_id email billing_address phone,customer database,confidential
+Account Support Dashboard,Analyze customer operational records,account_id email billing_address phone,approved customer service API,confidential
+Department Planning App,Manage internal department planning,project_code owner team deadline,internal ticketing system,internal
+Payment Administration Tool,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,privileged access system,restricted
+Department Planning App,Coordinate employee workflow and project tasks,department cost_center internal_notes,internal ticketing system,internal
+Community Information Portal,Publish information intended for external audiences,title description category public_url,approved marketing API,public
+Internal Knowledge Workflow,Support internal business operations,employee_name department task_status,internal database,internal
+Department Planning App,Manage internal department planning,department cost_center internal_notes,internal database,internal
+Financial Card Processing App,Support privileged access administration,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Public Event Directory,Share approved public content with customers,headline summary publication_date,public website,public
+Client Contact Manager,Support customer account servicing,account_id email billing_address phone,CRM API,confidential
+Credential Operations Workflow,Process highly sensitive payment information,password access_token secret_key,secret management service,restricted
+Community Information Portal,Publish information intended for external audiences,title description category public_url,public content feed,public
+Customer Operations Portal,Manage customer contact information,client_name phone_number support_case,customer support platform,confidential
+Public Product Catalog,Publish information intended for external audiences,product_name description public_price,public content feed,public
+Internal Knowledge Workflow,Support internal business operations,project_code owner team deadline,corporate workflow API,internal
+Press Release Tracker,Share approved public content with customers,event_name event_date venue public_link,approved marketing API,public
+Credential Operations Workflow,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,secret management service,restricted
+Financial Card Processing App,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Department Planning App,Track internal requests and operational activities,department cost_center internal_notes,enterprise directory,internal
+Customer Operations Portal,Support customer account servicing,customer_id contact_email address,customer database,confidential
+Privileged Access Manager,Handle restricted financial transaction data,bank_account routing_number payment_token,secret management service,restricted
+Credential Operations Workflow,Support privileged access administration,password access_token secret_key,restricted financial API,restricted
+Client Contact Manager,Support customer account servicing,customer_name email phone customer_id,customer database,confidential
+Internal Project Tracker,Support internal business operations,department cost_center internal_notes,internal database,internal
+Department Planning App,Support internal business operations,employee_name department task_status,internal database,internal
+Department Planning App,Track internal requests and operational activities,department cost_center internal_notes,enterprise directory,internal
+Client Contact Manager,Analyze customer operational records,customer_id contact_email address,customer database,confidential
+Financial Card Processing App,Manage privileged credentials and secrets,api_secret privileged_account credential,privileged access system,restricted
+Customer Service Workspace,Analyze customer operational records,client_name phone_number support_case,approved customer service API,confidential
+Financial Card Processing App,Support privileged access administration,password access_token secret_key,payment processor,restricted
+Credential Operations Workflow,Handle restricted financial transaction data,api_secret privileged_account credential,secret management service,restricted
+Account Support Dashboard,Analyze customer operational records,customer_name email phone customer_id,CRM API,confidential
+Customer Operations Portal,Process customer records for approved support operations,account_id email billing_address phone,customer database,confidential
+Client Contact Manager,Process customer records for approved support operations,account_id email billing_address phone,customer support platform,confidential
+Internal Knowledge Workflow,Manage internal department planning,asset_type employee_id approval_status,internal database,internal
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,project_code owner team deadline,internal ticketing system,internal
+Community Information Portal,Share approved public content with customers,product_name description public_price,approved marketing API,public
+Operations Task Board,Support internal business operations,project_code owner team deadline,internal database,internal
+Internal Project Tracker,Track internal requests and operational activities,department cost_center internal_notes,enterprise directory,internal
+Customer Service Workspace,Process customer records for approved support operations,account_id email billing_address phone,CRM API,confidential
+Customer Operations Portal,Process customer records for approved support operations,account_id email billing_address phone,customer support platform,confidential
+Press Release Tracker,Share approved public content with customers,headline summary publication_date,public content feed,public
+Community Information Portal,Provide public marketing and product information,product_name description public_price,approved marketing API,public
+Secrets Rotation Workflow,Support privileged access administration,bank_account routing_number payment_token,restricted financial API,restricted
+Public Product Catalog,Display public events and announcements,title description category public_url,public content feed,public
+Privileged Access Manager,Process highly sensitive payment information,password access_token secret_key,restricted financial API,restricted
+Privileged Access Manager,Process highly sensitive payment information,card_number expiry_date cvv account_holder,privileged access system,restricted
+Marketing Campaign Page,Publish information intended for external audiences,event_name event_date venue public_link,public CMS,public
+Marketing Campaign Page,Publish information intended for external audiences,product_name description public_price,public CMS,public
+Internal Project Tracker,Track internal requests and operational activities,employee_name department task_status,internal ticketing system,internal
+Community Information Portal,Publish information intended for external audiences,event_name event_date venue public_link,approved marketing API,public
+Account Support Dashboard,Analyze customer operational records,customer_name email phone customer_id,customer support platform,confidential
+Secrets Rotation Workflow,Process highly sensitive payment information,api_secret privileged_account credential,privileged access system,restricted
+Public Event Directory,Share approved public content with customers,event_name event_date venue public_link,approved marketing API,public
+Customer Data Export,Process customer records for approved support operations,customer_name email phone customer_id,customer database,confidential
+Financial Card Processing App,Manage privileged credentials and secrets,bank_account routing_number payment_token,payment processor,restricted
+Marketing Campaign Page,Display public events and announcements,event_name event_date venue public_link,public content feed,public
+Customer Operations Portal,Manage customer contact information,account_id email billing_address phone,customer support platform,confidential
+Account Support Dashboard,Analyze customer operational records,account_id email billing_address phone,customer database,confidential
+Customer Operations Portal,Support customer account servicing,customer_id contact_email address,customer database,confidential
+Marketing Campaign Page,Provide public marketing and product information,event_name event_date venue public_link,public website,public
+Customer Data Export,Analyze customer operational records,account_id email billing_address phone,customer support platform,confidential
+Marketing Campaign Page,Provide public marketing and product information,headline summary publication_date,public CMS,public
+Privileged Access Manager,Process highly sensitive payment information,password access_token secret_key,restricted financial API,restricted
+Customer Operations Portal,Manage customer contact information,account_id email billing_address phone,CRM API,confidential
+Operations Task Board,Track internal requests and operational activities,asset_type employee_id approval_status,enterprise directory,internal
+Client Contact Manager,Analyze customer operational records,client_name phone_number support_case,customer database,confidential
+Payment Administration Tool,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,payment processor,restricted
+Operations Task Board,Support internal business operations,asset_type employee_id approval_status,internal database,internal
+Account Support Dashboard,Analyze customer operational records,customer_name email phone customer_id,customer support platform,confidential
+Privileged Access Manager,Process highly sensitive payment information,bank_account routing_number payment_token,restricted financial API,restricted
+Client Contact Manager,Analyze customer operational records,customer_name email phone customer_id,customer support platform,confidential
+Account Support Dashboard,Manage customer contact information,customer_name email phone customer_id,CRM API,confidential
+Public Event Directory,Publish information intended for external audiences,event_name event_date venue public_link,public CMS,public
+Payment Administration Tool,Process highly sensitive payment information,api_secret privileged_account credential,payment processor,restricted
+Marketing Campaign Page,Display public events and announcements,event_name event_date venue public_link,public content feed,public
+Internal Knowledge Workflow,Track internal requests and operational activities,employee_name department task_status,internal database,internal
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,employee_name department task_status,internal ticketing system,internal
+Credential Operations Workflow,Process highly sensitive payment information,password access_token secret_key,payment processor,restricted
+Employee Equipment Request,Support internal business operations,department cost_center internal_notes,internal database,internal
+Operations Task Board,Support internal business operations,asset_type employee_id approval_status,enterprise directory,internal
+Public Event Directory,Display public events and announcements,event_name event_date venue public_link,public content feed,public
+Community Information Portal,Provide public marketing and product information,headline summary publication_date,public website,public
+Customer Operations Portal,Analyze customer operational records,customer_id contact_email address,approved customer service API,confidential
+Internal Knowledge Workflow,Coordinate employee workflow and project tasks,department cost_center internal_notes,corporate workflow API,internal
+Client Contact Manager,Support customer account servicing,account_id email billing_address phone,customer support platform,confidential
+Community Information Portal,Share approved public content with customers,title description category public_url,approved marketing API,public
+Customer Service Workspace,Analyze customer operational records,customer_id contact_email address,CRM API,confidential
+Internal Knowledge Workflow,Manage internal department planning,department cost_center internal_notes,corporate workflow API,internal
+Customer Data Export,Process customer records for approved support operations,customer_name email phone customer_id,customer support platform,confidential
+Credential Operations Workflow,Manage privileged credentials and secrets,bank_account routing_number payment_token,payment processor,restricted
+Employee Equipment Request,Manage internal department planning,asset_type employee_id approval_status,corporate workflow API,internal
+Privileged Access Manager,Process highly sensitive payment information,card_number expiry_date cvv account_holder,secret management service,restricted
+Customer Data Export,Process customer records for approved support operations,customer_name email phone customer_id,customer database,confidential
+Payment Administration Tool,Handle restricted financial transaction data,card_number expiry_date cvv account_holder,payment processor,restricted
+Account Support Dashboard,Manage customer contact information,client_name phone_number support_case,customer support platform,confidential
+Account Support Dashboard,Manage customer contact information,account_id email billing_address phone,CRM API,confidential
+Customer Operations Portal,Support customer account servicing,customer_id contact_email address,customer database,confidential
+Operations Task Board,Manage internal department planning,asset_type employee_id approval_status,internal ticketing system,internal
+Employee Equipment Request,Support internal business operations,employee_name department task_status,enterprise directory,internal
+Department Planning App,Track internal requests and operational activities,project_code owner team deadline,internal ticketing system,internal
+Account Support Dashboard,Support customer account servicing,account_id email billing_address phone,customer support platform,confidential
+Public Event Directory,Publish information intended for external audiences,event_name event_date venue public_link,approved marketing API,public
+Payment Administration Tool,Handle restricted financial transaction data,password access_token secret_key,privileged access system,restricted
+Public Event Directory,Publish information intended for external audiences,product_name description public_price,public website,public
+Privileged Access Manager,Process highly sensitive payment information,password access_token secret_key,payment processor,restricted
+Customer Service Workspace,Manage customer contact information,customer_id contact_email address,customer support platform,confidential
+Employee Equipment Request,Support internal business operations,asset_type employee_id approval_status,enterprise directory,internal
+Secrets Rotation Workflow,Manage privileged credentials and secrets,card_number expiry_date cvv account_holder,restricted financial API,restricted
+Operations Task Board,Support internal business operations,project_code owner team deadline,internal ticketing system,internal
+Credential Operations Workflow,Manage privileged credentials and secrets,password access_token secret_key,secret management service,restricted
+Press Release Tracker,Provide public marketing and product information,title description category public_url,public CMS,public
+Internal Project Tracker,Manage internal department planning,asset_type employee_id approval_status,corporate workflow API,internal
+Public Product Catalog,Display public events and announcements,title description category public_url,public content feed,public
+Public Product Catalog,Publish information intended for external audiences,headline summary publication_date,public CMS,public
+Customer Operations Portal,Analyze customer operational records,client_name phone_number support_case,approved customer service API,confidential
+Customer Operations Portal,Support customer account servicing,customer_name email phone customer_id,approved customer service API,confidential
+Privileged Access Manager,Handle restricted financial transaction data,password access_token secret_key,payment processor,restricted
+Press Release Tracker,Publish information intended for external audiences,title description category public_url,public website,public

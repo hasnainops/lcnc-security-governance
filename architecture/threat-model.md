@@ -1,120 +1,25 @@
-# LCNC Security Governance Threat Model
+### Boundary 10 — Software Supply Chain
 
-## Purpose
+GitHub and CI contain:
 
-This threat model identifies security risks across the LCNC Security Governance control plane.
-
-The objective is not to claim that every threat is completely eliminated. The objective is to make trust boundaries, implemented controls, residual risks, and future security requirements explicit.
-
-## Security Principles
-
-The MVP follows these principles:
-
-- unknown does not equal safe
-- risk scoring is explainable and deterministic
-- hard policy enforcement is separated from risk scoring
-- material application changes invalidate previous governance decisions
-- governance evidence is persisted rather than overwritten
-- sensitive internal services are not exposed publicly
-- custom containers run as non-root
-- security checks are enforced in CI
-- automation supports human accountability rather than replacing it
-
-## Critical Assets
-
-The primary assets are:
-
-1. Application inventory
-2. Application ownership and classification metadata
-3. Appsmith discovery credentials
-4. Risk-assessment logic
-5. OPA governance policies
-6. Governance decisions
-7. Audit history
-8. PostgreSQL data
-9. Governance API
-10. Governance Portal
-11. Prometheus and Grafana telemetry
-12. Source code and CI/CD pipeline
-
-## Trust Boundaries
-
-### Boundary 1: Citizen Developer Platform
-
-Appsmith is outside the governance decision engine.
-
-The discovery adapter authenticates to Appsmith and retrieves application metadata.
-
-Trust assumption:
-
-- Appsmith identity and metadata are accepted as discovery inputs.
-- Appsmith itself is not trusted to make governance decisions.
-
-### Boundary 2: Discovery to Governance API
-
-The discovery service submits newly identified applications and refreshes known application records.
-
-Security concern:
-
-A compromised discovery adapter could provide incorrect inventory information.
-
-### Boundary 3: Governance API to Risk Engine
-
-The Governance API sends normalized application facts to the deterministic risk engine.
-
-The risk engine returns:
-
-- score
-- risk level
-- contributing factors
-- model version
-
-Risk scores are advisory inputs to governance workflow logic.
-
-### Boundary 4: Governance API to OPA
-
-OPA is the hard-policy decision point.
-
-OPA evaluates facts independently from the numerical risk score.
-
-Example:
-
-Confidential or restricted data using an unapproved external integration results in DENY.
-
-This prevents a low or manipulated numerical score from bypassing a mandatory security rule.
-
-### Boundary 5: Governance API to PostgreSQL
-
-PostgreSQL stores:
-
-- applications
-- risk assessments
-- policy decisions
-- governance decisions
-- discovery timestamps
-
-Database integrity is therefore critical to governance evidence.
-
-### Boundary 6: Browser to Governance Portal
-
-The Governance Portal displays governance evidence and invokes Governance API operations through the Nginx reverse proxy.
-
-The current MVP is localhost-only.
-
-Enterprise authentication and authorization are outside the current MVP and are identified as a production requirement.
-
-### Boundary 7: Source Repository and CI/CD
-
-GitHub contains:
-
-- application code
+- source code
+- OPA policies
 - Dockerfiles
-- OPA policy
-- risk-engine tests
-- security-validation workflow
-- compliance mappings
+- ML training code
+- tests
+- security workflows
 
-Changes entering the main branch are subject to automated security validation.
+Security validation includes:
+
+- Python regression tests
+- OPA policy tests
+- SonarQube static analysis and Quality Gate
+- Trivy vulnerability, secret, and misconfiguration scanning
+- OWASP ZAP baseline DAST workflow
+- Dependabot dependency and container update monitoring
+- Docker Compose validation
+
+Changes are validated with automated security checks.
 
 ---
 
@@ -122,124 +27,238 @@ Changes entering the main branch are subject to automated security validation.
 
 | ID | Threat | Potential Impact | Current Mitigation | Residual Risk | Status |
 |---|---|---|---|---|---|
-| TM-01 | Unauthorized access to Governance Portal or API | Unauthorized assessment or governance actions | Services bound to localhost; internal services not publicly exposed | No enterprise SSO/RBAC in MVP | Partial |
-| TM-02 | Discovery credential compromise | Unauthorized access to LCNC inventory | Credentials stored outside Git in `.env`; secret scanning in CI | Local environment secrets still require operational protection and rotation | Partial |
-| TM-03 | Incorrect or forged discovery metadata | Incorrect inventory and governance decisions | Authenticated Appsmith adapter; unique external application IDs; persisted discovery timestamps | Source-platform metadata can still be inaccurate or compromised | Partial |
-| TM-04 | Governance workflow bypass | Risky application receives approval without mandatory policy evaluation | Governance orchestration invokes risk assessment and OPA before decision | Direct API authorization controls are not implemented | Partial |
-| TM-05 | OPA policy tampering | Mandatory security guardrails weakened | Policy stored in Git; OPA tests; CI validation; policy mounted read-only at runtime | Repository write access remains a privileged trust boundary | Implemented / Residual |
-| TM-06 | Risk-model manipulation | Artificially reduced application risk score | Deterministic model; explainable factors; model version stored; automated tests | Repository compromise could modify scoring logic | Implemented / Residual |
-| TM-07 | Stale approval after application changes | Previously approved application remains trusted after risk increases | Material metadata updates mark risk and governance state stale and require reassessment | Correct detection depends on visibility of the change | Implemented |
-| TM-08 | Audit-history modification | Loss of trustworthy governance evidence | Historical risk, policy, and governance records are persisted separately | Database is not append-only or cryptographically tamper-evident | Partial |
-| TM-09 | Sensitive-data exfiltration through external integration | Confidential or restricted data leaves approved boundary | OPA blocks confidential/restricted data with unapproved external integration | Policy decision does not itself enforce network-layer egress | Partial |
-| TM-10 | Shadow application evades discovery | Unmanaged LCNC application remains outside governance | Authenticated inventory discovery and known-vs-shadow comparison | Discovery is not yet continuous or event-driven | Partial |
-| TM-11 | Governance service denial of service | Assessments and approvals unavailable | Docker restart policies, health checks, Prometheus monitoring | No HA, rate limiting, clustering, or failover in local MVP | Partial |
-| TM-12 | Vulnerable or insecure container configuration | Control-plane compromise | Trivy HIGH/CRITICAL CI gate; non-root custom containers; minimal images | Base-image and dependency vulnerabilities require continuous maintenance | Implemented / Continuous |
-| TM-13 | Monitoring data exposure | Operational information disclosed | Prometheus/Grafana bound to localhost | Production deployment requires authentication and network segmentation | Partial |
-| TM-14 | Secret committed to source control | Credential disclosure | `.env` excluded from Git; Trivy secret scanner in CI | Developers can still mishandle secrets outside automated coverage | Implemented / Residual |
+| TM-01 | Unauthorized access to portal/API | Unauthorized governance operations | Localhost binding; OPA access-control capability | No enterprise SSO or strong API identity | Partial |
+| TM-02 | Discovery or runtime credential compromise | Unauthorized LCNC inventory or control-plane access | `.env` and protected runtime-secret files excluded from Git; CI secret scanning; dedicated Vault AppRoles; file-based SecretID delivery; Vault-managed Appsmith integration credential; dynamic PostgreSQL credentials; demonstrated SecretID revocation/recovery | Local Vault development mode lacks production TLS, persistent storage and HA; Appsmith account password remains platform-issued/static although centrally Vault-managed | Implemented / Residual |
+| TM-03 | Forged or incorrect source metadata | Incorrect governance decisions | Authenticated Appsmith discovery; persisted enterprise discovery evidence; unknown values remain unknown | A compromised or untrusted source platform can still provide false metadata | Partial |
+| TM-04 | Governance workflow bypass | Risky application receives improper approval | Risk evaluation; OPA governance policy; persistent approval requests/events; required roles; hard BLOCK protection | Enterprise user authentication and signed approval identity are not implemented | Implemented / Residual |
+| TM-05 | OPA policy tampering | Mandatory guardrails weakened | Policy stored in Git; read-only runtime mount; OPA tests; CI validation | Repository write access remains privileged | Implemented / Residual |
+| TM-06 | Risk-model manipulation | Artificially low risk score | Deterministic explainable scoring; tests; versioned evidence | Repository compromise could modify scoring logic | Implemented / Residual |
+| TM-07 | ML model manipulation or misleading output | Incorrect anomaly or classification recommendation | AI is advisory; authoritative classification remains governed; model versions and assessments are persisted | Synthetic training does not establish production accuracy | Implemented / Residual |
+| TM-08 | Stale approval after material change | Changed application remains trusted | Material changes invalidate or mark ML, scan, risk, and governance evidence stale | Protection depends on discovery visibility of the change | Implemented / Residual |
+| TM-09 | Sensitive-data exfiltration | Confidential or restricted data leaves the approved boundary | DLP inspection; Integration Gateway enforcement; unapproved, insecure, and restricted transfers blocked | Applications that bypass the governed gateway remain an enterprise integration risk | Implemented / Residual |
+| TM-10 | Shadow application evades discovery | Unmanaged application remains outside governance | Appsmith continuous discovery plus normalized enterprise discovery ingestion and persisted source evidence | Coverage remains limited to configured source adapters | Implemented / Residual |
+| TM-11 | Embedded secret in citizen application | Credential disclosure | Security Scanner detects possible embedded-secret conditions; Trivy/CI secret scanning | Metadata and repository scanning cannot detect every secret exposure path | Partial |
+| TM-12 | DLP unavailable | Sensitive transfer bypass | Integration Gateway fails closed when DLP is unavailable | Service outage can block legitimate transfer activity | Implemented |
+| TM-13 | OPA unavailable | Mandatory authorization bypass | Governance and access decisions fail closed | Availability depends on OPA | Implemented |
+| TM-14 | Vulnerable code, container, or dependency | Control-plane compromise | SonarQube static analysis; Trivy vulnerability/secret/misconfiguration scanning; Dependabot; ZAP baseline workflow | Continuous maintenance, patching, rebuild, and runtime validation remain required | Implemented / Continuous |
+| TM-15 | Audit-history tampering | Loss of trustworthy evidence | Historical assessment, decision, approval, privilege, training, and discovery records are persisted separately in PostgreSQL | Database evidence is not cryptographically tamper-evident | Partial |
+| TM-16 | Monitoring information disclosure | Operational or security information exposed | Prometheus and Grafana are bound locally in the MVP | Production requires authentication and network segmentation | Partial |
+| TM-17 | Excessive temporary privilege | Privileged action exceeds business need | Accountable JIT approval; action-scoped grants; TTL; OPA enforcement; automatic expiry and revoke events | Enterprise identity proofing and PAM integration remain production requirements | Implemented / Residual |
+| TM-18 | Approval workflow manipulation | Improper approval or escalation bypass | Persistent approval requests/events; required roles; SLA escalation; human decision audit; hard BLOCK protection | Enterprise identity and signed approval evidence are not implemented | Implemented / Residual |
+| TM-19 | Vault or dynamic credential misuse | Unauthorized database or integration-secret access | Dedicated AppRoles and policies; 15-minute PostgreSQL credentials; table-level least privilege; cross-workload Vault access denied; renewable service tokens; AppRole SecretID revocation/recovery | Local Vault development mode is not production hardened with TLS, persistent storage or HA | Implemented / Residual |
+| TM-20 | Required training bypass | Governance approval despite unresolved training requirements | Automated training assignments; due/status tracking; training events; approval training gate | Enterprise LMS identity and attestation are not integrated | Implemented / Residual |
 
 ---
 
-## High-Risk Abuse Case
+## Primary Abuse Case
 
 ### Scenario
 
-A citizen developer creates an application that processes confidential customer data and connects it to an unapproved external API.
+A citizen developer creates an application that handles confidential customer data and connects to an unapproved external service.
 
-### Attack / Risk Path
+### Risk Path
 
-1. Application is created outside the governance inventory.
-2. Discovery detects the application.
-3. Application enters the inventory as unregistered.
-4. Data classification is identified as confidential.
-5. External integration is present.
-6. Integration approval is false.
-7. Risk engine calculates elevated risk.
-8. OPA evaluates the underlying facts.
-9. OPA returns DENY.
-10. Governance workflow returns BLOCK.
-11. Security/GRC Reviewer becomes the required role.
-12. Decision and rationale are persisted.
+1. The citizen developer creates the application in Appsmith or another connected discovery source.
+2. Continuous or enterprise discovery detects the application.
+3. Discovery evidence is normalized and persisted.
+4. Inventory comparison identifies its registration and governance state.
+5. ML anomaly analysis evaluates unusual application characteristics.
+6. ML classification suggests data sensitivity when sufficient metadata exists.
+7. The Security Scanner identifies deterministic security findings.
+8. The Risk Engine calculates an explainable risk score and contributing factors.
+9. OPA evaluates mandatory governance policy.
+10. The Governance API creates the governance outcome.
+11. Governance Automation routes the application to the required approval path.
+12. High-risk or blocked cases are assigned to the appropriate Security/GRC role.
+13. Overdue approval requests can be escalated according to the configured SLA.
+14. Dynamic Compliance records passed, failed, and not-assessed controls.
+15. Required training is automatically assigned from identified control deficiencies.
+16. Incomplete required training can prevent approval progression.
+17. Human decisions, escalation events, training evidence, and governance outcomes are persisted.
+18. A mandatory OPA BLOCK cannot be silently converted into approval.
 
-### Important Design Decision
+If the application attempts an outbound sensitive transfer:
 
-OPA does not rely only on the risk score.
+1. The Governance API obtains the authoritative application classification.
+2. The Integration Gateway invokes the DLP Engine.
+3. DLP identifies sensitive-data indicators.
+4. The gateway combines authoritative classification, detected sensitivity, destination trust, and transport security.
+5. The gateway returns ALLOW or BLOCK.
+6. Safe transfer evidence is persisted.
+7. Raw sensitive transfer content is not stored in the audit record.
+---
 
-The mandatory security decision uses the underlying application facts.
+## AI Threat Considerations
 
-This reduces the risk that a scoring defect or changed weighting allows a mandatory security control to be bypassed.
+### Model Leakage
+
+Governance outcomes, known shadow labels, approval outcomes, and risk scores are excluded from anomaly-model input features.
+
+This reduces direct decision leakage between authoritative governance outcomes and AI anomaly analysis.
+
+### False Positives and False Negatives
+
+ML results are not treated as mandatory authorization.
+
+OPA, deterministic risk scoring, the Security Scanner, DLP, the Integration Gateway, and Governance Automation remain separate control mechanisms.
+
+A misleading ML result therefore cannot independently approve an application or privileged action.
+
+### Synthetic Training Data
+
+Current ML validation uses synthetic datasets.
+
+Reported model metrics demonstrate implementation behavior only.
+
+They are not production-accuracy claims.
+
+Production deployment would require representative enterprise datasets, model validation, drift monitoring, and defined retraining governance.
+
+### AI Overreach
+
+The architecture intentionally separates responsibilities:
+
+- ML performs anomaly detection and classification assistance.
+- Deterministic controls identify explicit security conditions.
+- OPA enforces mandatory policy.
+- Governance Automation manages workflow state.
+- Human stakeholders remain accountable for consequential organizational decisions.
+
+AI output does not become final authorization.
 
 ---
 
-## Remediation Path
+## Fail-Closed Behavior
 
-For the demonstrated Customer Data Export application:
+### OPA Unavailable
 
-Initial state:
+Mandatory governance and access authorization is not fabricated.
 
-- unregistered
-- no owner
-- confidential data
-- external integration
-- integration not approved
-- API-key credential
+Requests that require OPA authorization fail rather than silently receiving permission.
 
-Result:
+### DLP Unavailable
 
-- CRITICAL risk
-- OPA DENY
-- BLOCK
+Protected outbound-transfer evaluation blocks rather than bypassing sensitive-data inspection.
 
-Remediation:
+This protects confidentiality at the cost of temporary availability for legitimate transfers.
 
-- register application
-- assign accountable owner
-- assign business unit and purpose
-- retain confidential classification
-- remove external integration
-- remove API-key dependency
-- reassess
+### Risk Engine Unavailable
 
-Result:
+Governance evaluation does not invent a risk result.
 
-- LOW risk
-- OPA ALLOW
-- AUTO_APPROVE
+The workflow cannot represent a missing risk assessment as a successful assessment.
 
-Historical BLOCK evidence remains available after remediation.
+### Security Scanner Incomplete or Unavailable
+
+Missing scanner evidence is not represented as a clean security scan.
+
+### Missing Telemetry
+
+Unknown information remains unknown or pending.
+
+Missing source metadata is not converted to a safe default.
+
+### Governance Automation Unavailable
+
+A governance decision must not be represented as having completed an approval workflow when approval routing or accountable decision evidence could not be created.
+
+Mandatory OPA BLOCK outcomes remain authoritative.
+
+### Vault Unavailable
+
+The Governance API cannot obtain new dynamic PostgreSQL credentials from Vault.
+
+The system must not fall back to an embedded long-lived production database password.
+
+Existing cached short-lived credentials remain usable only within their valid lifetime.
+
+### Training Evidence Unavailable
+
+Missing required-training evidence must not be interpreted as training completion.
+
+Approval readiness must be based on recorded completion state.
+
+---
+
+## Secure Credential Handling
+
+Current MVP controls:
+
+- `.env` is excluded from Git.
+- `.env.example` contains placeholders only.
+- CI performs repository secret scanning.
+- Vault provides centralized runtime secret services for database workloads and the Appsmith discovery integration.
+- Governance API, Enterprise Discovery, Governance Automation, and Appsmith Discovery authenticate to Vault through dedicated AppRoles.
+- Workload-specific Vault policies limit each identity to its required database or integration-secret path.
+- Vault's PostgreSQL secrets engine issues 15-minute dynamic credentials to Governance API, Enterprise Discovery, and Governance Automation.
+- Dynamic database credentials are not committed to source control.
+- AppRole SecretIDs are delivered through protected runtime files rather than workload environment variables.
+- Appsmith Discovery retrieves its managed integration credential from Vault KV v2.
+- Revocation testing proved that a destroyed SecretID is rejected and recovery uses a freshly issued credential.
+- Governance API database connections use the dynamically issued identity.
+
+Current MVP limitations:
+
+- the local Vault instance runs in development mode for demonstration
+- production Vault persistent storage is not configured
+- production Vault HA is not configured
+- TLS is not configured for local Vault communication
+- production unseal and recovery procedures are not implemented
+- local bootstrap or administrative demo credentials outside the Objective 14 workload/integration scope may remain outside Vault
+
+These limitations are production-hardening requirements rather than hidden MVP capabilities.
+
+---
+
+## Residual Risk
+
+The platform cannot independently guarantee that:
+
+- every enterprise LCNC platform or SaaS source is connected
+- every shadow application is observable through configured discovery adapters
+- source-platform metadata is truthful
+- every enterprise network path is forced through the Integration Gateway
+- administrators cannot misuse privileged host or infrastructure access
+- all security findings are detectable from available metadata
+- synthetic ML performance represents production accuracy
+- enterprise identity accurately proves every human decision maker
+- local PostgreSQL audit records are cryptographically tamper-evident
+- all organizational controls outside the technical system are followed
+- a local single-node deployment provides production availability or disaster recovery
+
+These risks require combined people, process, identity, infrastructure, and technology controls.
 
 ---
 
 ## Production Security Requirements
 
-The following controls are intentionally outside the current localhost MVP and would be required before enterprise production use:
+Before production deployment, additional controls would include:
 
 - enterprise SSO
-- RBAC and least-privilege authorization
-- service-to-service authentication
-- TLS between services
-- centralized secrets management
-- database encryption and restricted database roles
-- append-only or tamper-evident audit storage
+- MFA
+- strong API authentication
+- workload and service identities
+- TLS or mTLS between services
+- production-hardened Vault
+- persistent Vault storage
+- Vault HA
+- controlled unseal and recovery procedures
+- broader migration of administrative/bootstrap-only local secrets into managed production secret paths
 - network segmentation
-- outbound egress enforcement
-- API rate limiting
-- high availability
+- database encryption and restricted roles
+- tamper-evident audit storage
+- enterprise API gateway controls
+- distributed rate limiting
+- broader control-plane and stateful-service high availability beyond the demonstrated Governance API A/B failover
 - backup and disaster recovery
-- continuous discovery scheduling
-- additional LCNC platform connectors
-- signed build artifacts and software provenance
-- centralized security logging and SIEM integration
+- SIEM integration
+- additional LCNC and enterprise security connectors
+- enterprise PAM integration where appropriate
+- enterprise LMS integration where appropriate
+- software signing and provenance
+- production ML validation
+- model drift monitoring
+- operational security monitoring
+- tested incident-response and recovery procedures
 
-These are production hardening requirements, not hidden assumptions about the current MVP.
-
-## Residual Risk
-
-The control plane reduces governance risk but cannot independently guarantee that:
-
-- every LCNC platform is connected
-- source metadata is truthful
-- sensitive data never leaves approved environments
-- administrators cannot misuse privileged access
-- organizational governance processes are followed outside the technical workflow
-
-Those risks require a combination of people, process, and technology controls.
+The local MVP demonstrates the logical security-governance control architecture but does not claim these production capabilities.

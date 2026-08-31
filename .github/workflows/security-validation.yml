@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/mvp-v3-enterprise-automation
   pull_request:
 
 permissions:
@@ -16,12 +17,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.13"
 
@@ -45,7 +46,7 @@ jobs:
           pytest -q tests/test_risk_engine.py tests/test_dependency_failures.py
 
       - name: Setup OPA
-        uses: open-policy-agent/setup-opa@v2.4.0
+        uses: open-policy-agent/setup-opa@b2b258e089860efaadaaf71bf6e3aecb4a3eeff1 # v2.4.0
         with:
           version: 1.19.0
 
@@ -63,7 +64,7 @@ jobs:
           docker compose config --quiet
 
       - name: Trivy repository security scan
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
