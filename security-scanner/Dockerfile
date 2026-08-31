@@ -2,7 +2,7 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.lock.txt .
 
 RUN cp /etc/apt/sources.list.d/debian.sources /tmp/debian.sources \
     && printf '%s\n' \
@@ -26,7 +26,7 @@ RUN cp /etc/apt/sources.list.d/debian.sources /tmp/debian.sources \
         libssl3t64 \
         openssl-provider-legacy \
     && mv /tmp/debian.sources /etc/apt/sources.list.d/debian.sources \
-    && python -m pip install --no-cache-dir --only-binary :all: -r requirements.txt \
+    && python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.lock.txt \
     && python -m pip uninstall -y pip setuptools \
     && rm -rf \
         /usr/local/lib/python3.13/site-packages/pip* \

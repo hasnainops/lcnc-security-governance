@@ -31,12 +31,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          python -m pip install --only-binary :all: \
-            pytest==9.1.1 \
-            -r ml-analytics/requirements.txt \
-            -r security-scanner/requirements.txt \
-            -r dlp-engine/requirements.txt \
-            -r integration-gateway/requirements.txt
+          python -m pip install --only-binary=:all: --require-hashes -r ci/python-security-requirements.lock.txt
 
       - name: Run ML tests
         env:

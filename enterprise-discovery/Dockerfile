@@ -2,9 +2,9 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.lock.txt .
 
-RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
+RUN pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.lock.txt
 
 RUN groupadd --gid 10001 app && \
     useradd --uid 10001 --gid 10001 --create-home app
