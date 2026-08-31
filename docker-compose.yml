@@ -114,7 +114,7 @@ services:
   # --------------------------------------------------
 
   appsmith:
-    image: appsmith/appsmith-ce:v2.2
+    image: appsmith/appsmith-ce:v2.3
     container_name: lcnc-appsmith
     expose:
       - "80"
