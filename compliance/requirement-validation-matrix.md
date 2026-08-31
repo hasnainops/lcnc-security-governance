@@ -333,7 +333,7 @@ The following are deliberately outside the local MVP:
 - mutual TLS
 - production-hardened Vault deployment with TLS, persistent storage, HA and operational unseal/recovery controls
 - tamper-evident audit storage
-- high availability
+- broader control-plane and stateful-service high availability beyond the demonstrated Governance API A/B failover
 - disaster recovery
 - distributed rate limiting
 - enterprise SIEM integration
@@ -398,7 +398,7 @@ PARTIAL BY DESIGN
 
 The logical control architecture is demonstrated.
 
-Enterprise identity, high availability, production-hardened Vault operations, SIEM integration, enterprise-wide network enforcement and production-scale ML remain documented production extensions.
+Enterprise identity, broader control-plane and stateful-service high availability beyond the demonstrated Governance API A/B failover, production-hardened Vault operations, SIEM integration, enterprise-wide network enforcement and production-scale ML remain documented production extensions.
 
 ## Recommended Interview Position
 
