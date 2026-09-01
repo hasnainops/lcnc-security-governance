@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -725,7 +726,7 @@ def record_decision(
                             "training must be completed "
                             "before approval."
                         ),
-                        **training_gate,
+                        **jsonable_encoder(training_gate),
                     },
                 )
 
