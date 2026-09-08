@@ -47,7 +47,7 @@ def _config():
     return {
         "vault_addr": os.getenv(
             "VAULT_ADDR",
-            "http://vault:8200",
+            "http://vault:8200",  # NOSONAR - local Docker-internal Vault transport; production requires TLS/mTLS
         ).rstrip("/"),
         "role_id": role_id,
         "secret_id_file": secret_id_file,

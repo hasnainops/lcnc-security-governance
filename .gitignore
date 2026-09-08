@@ -7,3 +7,5 @@ __pycache__/
 .scannerwork/
 
 .runtime-secrets/
+.coverage
+coverage.xml

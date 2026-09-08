@@ -17,6 +17,9 @@ from .policy import evaluate_and_persist
 from .training import assign_required_training
 
 
+SECURITY_GRC_REVIEWER_ROLE = "Security/GRC Reviewer"
+
+
 def determine_outcome(
     assessment,
     policy,
@@ -26,7 +29,7 @@ def determine_outcome(
         return {
             "outcome": "BLOCK",
             "status": "blocked",
-            "required_role": "Security/GRC Reviewer",
+            "required_role": SECURITY_GRC_REVIEWER_ROLE,
             "reasons": policy["reasons"],
         }
 
@@ -38,7 +41,7 @@ def determine_outcome(
         return {
             "outcome": "SECURITY_REVIEW",
             "status": "pending_review",
-            "required_role": "Security/GRC Reviewer",
+            "required_role": SECURITY_GRC_REVIEWER_ROLE,
             "reasons": [
                 (
                     "AI anomaly assessment requires "
@@ -73,7 +76,7 @@ def determine_outcome(
     return {
         "outcome": "SECURITY_REVIEW",
         "status": "pending_review",
-        "required_role": "Security/GRC Reviewer",
+        "required_role": SECURITY_GRC_REVIEWER_ROLE,
         "reasons": [
             f"{risk_level.title()} risk requires security/GRC review."
         ],

@@ -14,7 +14,7 @@ APPSMITH_BASE_URL = os.getenv(
 
 VAULT_ADDR = os.getenv(
     "VAULT_ADDR",
-    "http://vault:8200",
+    "http://vault:8200",  # NOSONAR - local Docker-internal Vault transport; production requires TLS/mTLS
 ).rstrip("/")
 
 VAULT_ROLE_ID = os.getenv("VAULT_ROLE_ID")
@@ -298,18 +298,8 @@ def _count_widgets(node):
     return total
 
 
-def collect_workflow_security_metadata(
-    client: httpx.Client,
-    application: dict,
-):
-    """Collect sanitized Appsmith workflow security evidence.
-
-    Only aggregate security counts are returned. Raw URLs,
-    request bodies, header values, bindings, tokens, and
-    credentials are never returned.
-    """
-
-    metadata = {
+def _new_workflow_security_metadata():
+    return {
         "page_count": 0,
         "widget_count": 0,
         "action_count": 0,
@@ -321,176 +311,245 @@ def collect_workflow_security_metadata(
         "sensitive_header_action_count": 0,
     }
 
-    pages = application.get("pages", [])
+
+def _get_page_data(
+    client: httpx.Client,
+    page_id: str,
+):
+    response = client.get(
+        (
+            f"{APPSMITH_BASE_URL}"
+            f"/api/v1/pages/{page_id}"
+        )
+    )
+    response.raise_for_status()
+
+    return (
+        response
+        .json()
+        .get("data", {})
+    )
+
+
+def _get_page_actions(
+    client: httpx.Client,
+    page_id: str,
+):
+    response = client.get(
+        (
+            f"{APPSMITH_BASE_URL}"
+            "/api/v1/actions"
+        ),
+        params={
+            "pageId": page_id,
+        },
+    )
+    response.raise_for_status()
+
+    return (
+        response
+        .json()
+        .get("data", [])
+    )
+
+
+def _count_page_widgets(page_data: dict):
+    total = 0
+
+    for layout in page_data.get(
+        "layouts",
+        [],
+    ):
+        total += _count_widgets(
+            layout.get("dsl", {})
+        )
+
+    return total
+
+
+def _extract_action_url(action: dict):
+    datasource = action.get(
+        "datasource",
+        {},
+    )
+
+    if not isinstance(datasource, dict):
+        return None
+
+    config = datasource.get(
+        "datasourceConfiguration"
+    )
+
+    if not isinstance(config, dict):
+        return None
+
+    for key in (
+        "url",
+        "endpoint",
+        "host",
+    ):
+        value = config.get(key)
+
+        if isinstance(value, str) and value:
+            return value
+
+    return None
+
+
+def _record_transport_metadata(
+    metadata: dict,
+    raw_url,
+):
+    if not isinstance(raw_url, str):
+        return
+
+    normalized_url = (
+        raw_url
+        .strip()
+        .lower()
+    )
+
+    if normalized_url.startswith(
+        "http://"  # NOSONAR - intentionally detects insecure HTTP metadata
+    ):
+        metadata[
+            "http_action_count"
+        ] += 1
+
+    elif normalized_url.startswith(
+        "https://"
+    ):
+        metadata[
+            "https_action_count"
+        ] += 1
+
+
+def _has_sensitive_header(action: dict):
+    config = action.get(
+        "actionConfiguration",
+        {},
+    )
+
+    headers = (
+        config.get("headers", [])
+        if isinstance(config, dict)
+        else []
+    )
+
+    if not isinstance(headers, list):
+        return False
+
+    for header in headers:
+        if not isinstance(header, dict):
+            continue
+
+        name = (
+            header.get("key")
+            or header.get("name")
+        )
+
+        if (
+            isinstance(name, str)
+            and name.lower()
+            in SENSITIVE_HEADER_NAMES
+        ):
+            return True
+
+    return False
+
+
+def _record_action_metadata(
+    metadata: dict,
+    action: dict,
+):
+    metadata["action_count"] += 1
+
+    if action.get("pluginType") == "API":
+        metadata[
+            "api_action_count"
+        ] += 1
+
+    metadata[
+        "dynamic_binding_count"
+    ] += len(
+        action.get(
+            "dynamicBindingPathList",
+            [],
+        )
+    )
+
+    if action.get("isValid") is False:
+        metadata[
+            "invalid_action_count"
+        ] += 1
+
+    _record_transport_metadata(
+        metadata,
+        _extract_action_url(action),
+    )
+
+    if _has_sensitive_header(action):
+        metadata[
+            "sensitive_header_action_count"
+        ] += 1
+
+
+def _collect_page_security_metadata(
+    client: httpx.Client,
+    page_id: str,
+    metadata: dict,
+):
+    page_data = _get_page_data(
+        client,
+        page_id,
+    )
+
+    metadata[
+        "widget_count"
+    ] += _count_page_widgets(
+        page_data
+    )
+
+    for action in _get_page_actions(
+        client,
+        page_id,
+    ):
+        _record_action_metadata(
+            metadata,
+            action,
+        )
+
+
+def collect_workflow_security_metadata(
+    client: httpx.Client,
+    application: dict,
+):
+    """Collect sanitized Appsmith workflow security evidence.
+
+    Only aggregate security counts are returned. Raw URLs,
+    request bodies, header values, bindings, tokens, and
+    credentials are never returned.
+    """
+
+    metadata = (
+        _new_workflow_security_metadata()
+    )
+
+    pages = application.get(
+        "pages",
+        [],
+    )
+
     metadata["page_count"] = len(pages)
 
     for page in pages:
-        page_id = page["id"]
-
-        page_response = client.get(
-            (
-                f"{APPSMITH_BASE_URL}"
-                f"/api/v1/pages/{page_id}"
-            )
+        _collect_page_security_metadata(
+            client,
+            page["id"],
+            metadata,
         )
-        page_response.raise_for_status()
-
-        page_data = (
-            page_response
-            .json()
-            .get("data", {})
-        )
-
-        for layout in page_data.get(
-            "layouts",
-            [],
-        ):
-            metadata["widget_count"] += (
-                _count_widgets(
-                    layout.get("dsl", {})
-                )
-            )
-
-        action_response = client.get(
-            (
-                f"{APPSMITH_BASE_URL}"
-                "/api/v1/actions"
-            ),
-            params={
-                "pageId": page_id,
-            },
-        )
-        action_response.raise_for_status()
-
-        actions = (
-            action_response
-            .json()
-            .get("data", [])
-        )
-
-        for action in actions:
-            metadata["action_count"] += 1
-
-            if action.get("pluginType") == "API":
-                metadata[
-                    "api_action_count"
-                ] += 1
-
-            metadata[
-                "dynamic_binding_count"
-            ] += len(
-                action.get(
-                    "dynamicBindingPathList",
-                    [],
-                )
-            )
-
-            if action.get("isValid") is False:
-                metadata[
-                    "invalid_action_count"
-                ] += 1
-
-            datasource = action.get(
-                "datasource",
-                {},
-            )
-
-            datasource_config = (
-                datasource.get(
-                    "datasourceConfiguration"
-                )
-                if isinstance(
-                    datasource,
-                    dict,
-                )
-                else None
-            )
-
-            raw_url = None
-
-            if isinstance(
-                datasource_config,
-                dict,
-            ):
-                for key in (
-                    "url",
-                    "endpoint",
-                    "host",
-                ):
-                    value = (
-                        datasource_config
-                        .get(key)
-                    )
-
-                    if (
-                        isinstance(value, str)
-                        and value
-                    ):
-                        raw_url = value
-                        break
-
-            if isinstance(raw_url, str):
-                normalized_url = (
-                    raw_url
-                    .strip()
-                    .lower()
-                )
-
-                if normalized_url.startswith(
-                    "http://"
-                ):
-                    metadata[
-                        "http_action_count"
-                    ] += 1
-
-                elif normalized_url.startswith(
-                    "https://"
-                ):
-                    metadata[
-                        "https_action_count"
-                    ] += 1
-
-            config = action.get(
-                "actionConfiguration",
-                {},
-            )
-
-            headers = (
-                config.get("headers", [])
-                if isinstance(config, dict)
-                else []
-            )
-
-            sensitive_header = False
-
-            if isinstance(headers, list):
-                for header in headers:
-                    if not isinstance(
-                        header,
-                        dict,
-                    ):
-                        continue
-
-                    name = (
-                        header.get("key")
-                        or header.get("name")
-                    )
-
-                    if (
-                        isinstance(name, str)
-                        and name.lower()
-                        in SENSITIVE_HEADER_NAMES
-                    ):
-                        sensitive_header = True
-                        break
-
-            if sensitive_header:
-                metadata[
-                    "sensitive_header_action_count"
-                ] += 1
 
     return metadata
-
 
 def send_workflow_security_metadata(
     application_id: str,

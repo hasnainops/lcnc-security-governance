@@ -60,7 +60,7 @@ ML_ANALYTICS_URL = os.getenv(
 
 GOVERNANCE_API_URL = os.getenv(
     "GOVERNANCE_API_URL",
-    "http://governance-api:8000",
+    "http://governance-api:8000",  # NOSONAR - local Docker-internal API transport; production requires TLS/mTLS
 )
 
 
