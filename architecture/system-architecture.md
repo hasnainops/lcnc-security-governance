@@ -15,7 +15,7 @@ The control plane discovers and inventories citizen-developed applications, anal
 - OPA makes mandatory policy and access-control decisions.
 - DLP inspects sensitive data before external transfers.
 - Historical evidence is retained after reassessment.
-- Material application changes make previous security state stale.
+- Application metadata PATCH requests mark current derived assessments and governance state stale; observed-workflow changes separately invalidate scanner state.
 - Automation supports human accountability rather than replacing it.
 - Hard policy blocks cannot be silently overridden by human approval.
 - Privileged access is time-limited and auditable through JIT grants.
@@ -25,67 +25,44 @@ The control plane discovers and inventories citizen-developed applications, anal
 
 ## High-Level Architecture
 
-The logical `Governance API` component below is exposed through a stable Caddy endpoint. At runtime, Caddy health-checks and load-balances across two stateless Governance API replicas.
+![MVP architecture overview](diagrams/mvp-system-overview.svg)
 
-Citizen Developer
-|
-v
-Appsmith / Enterprise Discovery Sources
-|
-+----> Appsmith Discovery Worker
-|
-+----> Enterprise Discovery
-|       - normalized source events
-|       - durable discovery evidence
-|       - ML handoff
-|
-v
-ML Analytics
-|       - Isolation Forest anomaly detection
-|       - TF-IDF + Logistic Regression classification
-|
-v
-Governance API
-|
-+----> Risk Engine
-|
-+----> Security Scanner
-|
-+----> OPA
-|       - governance policy
-|       - fine-grained access policy
-|       - JIT-aware access decisions
-|
-+----> Governance Automation
-|       - approval routing
-|       - SLA escalation
-|       - human decisions
-|       - training gate
-|       - JIT privilege lifecycle
-|
-+----> Integration Gateway
-|          |
-|          v
-|       DLP Engine
-|
-+----> Dynamic Compliance
-|
-+----> Citizen Guidance / Training Automation
-|
-+----> Vault
-|       - AppRole authentication
-|       - dynamic PostgreSQL credentials
-|
-v
-PostgreSQL Evidence Store
-|
-+----> Governance Portal
-|
-+----> Prometheus / Grafana
+The [editable SVG overview](diagrams/mvp-system-overview.svg) is the figure to reuse on **Slide 6 — MVP Architecture**. Slide 5 explains the governance operating model and decision responsibilities; Slide 6 shows the components that implement them.
 
-DevSecOps controls include pytest, OPA tests, SonarQube static
-analysis and Quality Gate, Trivy vulnerability/secret/misconfiguration
-scanning, OWASP ZAP baseline DAST configuration, and Dependabot.
+This is a logical view of the implemented MVP. Solid arrows show calls, not a single pipeline that every request traverses. Responses are omitted. Dashed arrows show API infrastructure dependencies; the supporting boxes list the other database and Vault clients. Detailed host ports, network boundaries and operational sequences belong in supporting views.
+
+### Entry paths and the API boundary
+
+- Appsmith REST actions call the stable `governance-api` endpoint. Browser access to Appsmith itself uses the separate `appsmith-proxy`.
+- The Governance Portal uses its Nginx `/api/` proxy to reach that same stable endpoint.
+- Appsmith Discovery polls Appsmith and invokes inventory, workflow-evidence, ML and scanner endpoints on the Governance API. It does not call ML Analytics directly or automatically run governance evaluation.
+- Enterprise Discovery calls ML Analytics directly when anomaly telemetry is complete, then hands the existing result to `/enterprise-discovery/handoff`. It separately persists its discovery records in PostgreSQL.
+
+The Compose service named `governance-api` is **Caddy**. It health-checks and load-balances across the Python services `governance-api-a` and `governance-api-b`. Either replica can make the downstream calls drawn from the API boundary. Inventory, orchestration, dynamic compliance, citizen guidance, training and controlled-egress execution are modules inside those replicas, not additional services.
+
+### Separate control paths
+
+| Path | Calls and responsibility |
+|---|---|
+| Analysis | API calls ML Analytics for anomaly/classification and Security Scanner for findings through separate endpoints. ML suggestions remain advisory. |
+| Governance evaluation | API calls Risk Engine, evaluates OPA governance policy, reads stored anomaly state, persists the outcome, requests approval routing and assigns required training. OPA deny takes precedence; an assessed positive anomaly requires security review before ordinary risk-level routing. |
+| Approval and training | Governance Automation creates approval records and manages escalation/human decisions. Even `AUTO_APPROVE` routes to human confirmation. API modules assign training; Automation checks outstanding required assignments directly in PostgreSQL. |
+| Access and JIT | API obtains active grant context from Automation and passes it to OPA access policy. Automation owns grant requests, approval, expiry and revocation. There is no direct JIT-to-OPA call. |
+| Transfer evaluation | API validates the destination, derives destination trust, loads authoritative classification and calls Integration Gateway. Gateway calls DLP and returns its transfer verdict. |
+| Controlled egress | On transfer `ALLOW`, the API executes the external HTTP POST. On `BLOCK`, it makes no outbound request. The evaluation-only endpoint does not execute a transfer. |
+
+The governance endpoint does not rerun every analysis service. OPA authorization and controlled egress are explicit paths, not universal API middleware. A persisted governance decision can coexist with a reported approval-routing or training-assignment error; inspect those returned statuses separately.
+
+### Supporting systems
+
+- API A/B, Enterprise Discovery and Governance Automation connect directly to PostgreSQL with their workload-specific Vault credentials. Vault manages credentials rather than forwarding their SQL.
+- Appsmith Discovery retrieves its managed Appsmith credential from Vault KV.
+- Prometheus scrapes API A and B directly, plus OPA, Integration Gateway and itself. Grafana queries Prometheus.
+- GitHub Actions, pytest, OPA tests, SonarQube, Trivy, the ZAP workflow and Dependabot provide software validation outside the synchronous business-request flow.
+
+The export's direct Appsmith `GetApprovals` query targets Automation on the default network, while Appsmith is attached only to `appsmith_restricted`. That query requires separate runtime verification and is not drawn as a working connection. The verified approval route in this overview is API to Automation.
+
+Implementation references: [Compose](../docker-compose.yml), [Caddy](../governance-api/caddy/Caddyfile), [Portal proxy](../governance-portal/nginx.conf), [Appsmith actions](../appsmith/exports/lcnc-governance-demo-v4.json), [Appsmith Discovery](../discovery/appsmith_discovery.py), [Enterprise Discovery](../enterprise-discovery/app/main.py), [governance workflow](../governance-api/app/workflow.py), [authorization](../governance-api/app/access.py), [controlled egress](../governance-api/app/integration.py), [Automation](../governance-automation/app/main.py), [Prometheus](../monitoring/prometheus.yml).
 
 ## 1. Citizen Development Layer
 
@@ -226,7 +203,7 @@ Governance API responsibilities:
 - risk assessment
 - governance evaluation
 - access authorization
-- outbound-transfer evaluation
+- outbound-transfer evaluation and controlled-egress execution
 - dynamic compliance
 - audit history
 - citizen-developer guidance
@@ -330,8 +307,9 @@ Access and privilege lifecycle decisions are persisted for audit.
 
 Components:
 
-- `dlp-engine`
-- `integration-gateway`
+- `dlp-engine` — content inspection
+- `integration-gateway` — transfer-policy evaluation
+- `governance-api` replicas — destination validation, evaluation persistence and allowed outbound execution
 
 DLP detects indicators including:
 
@@ -342,7 +320,7 @@ DLP detects indicators including:
 - confidential field names
 - restricted field names
 
-Raw sensitive values are not persisted as evidence.
+Raw sensitive transfer content is not persisted in `integration_transfer_events`. The API stores evaluation metadata before execution and returns the external response status to the caller.
 
 The Integration Gateway combines:
 
@@ -510,9 +488,11 @@ Governance API database access does not use a long-lived application database pa
 | Risk Engine | Quantify and explain risk |
 | Security Scanner | Detect deterministic findings |
 | DLP | Inspect sensitive data |
-| Integration Gateway | Enforce outbound-transfer controls |
+| Integration Gateway | Evaluate outbound-transfer policy using DLP evidence |
+| Governance API | Orchestrate explicit control paths and execute allowed outbound requests |
 | OPA | Mandatory governance and access decisions |
-| Governance Workflow | Approval and escalation |
+| Governance API workflow | Select and persist the governance outcome |
+| Governance Automation | Approval routing, human decisions, escalation and JIT lifecycle |
 | Human Stakeholders | Final organizational accountability |
 
 ## Failure Behavior

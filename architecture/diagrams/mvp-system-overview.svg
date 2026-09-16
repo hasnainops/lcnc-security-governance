@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title desc">
+<title id="title">MVP Architecture: Governance API orchestration</title>
+<desc id="desc">Appsmith, Portal and two discovery paths reach a Caddy endpoint with two Governance API replicas. The API calls independent analysis, policy, automation and transfer services. The API executes external requests only after a transfer allow decision. Compliance, guidance and training remain inside the API. Database, secrets, monitoring and software validation are supporting concerns.</desc>
+<defs>
+<marker id="slate" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 0 0 L 8 4 L 0 8 Z" fill="#7d8fa3"/></marker>
+<marker id="teal" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 0 0 L 8 4 L 0 8 Z" fill="#147b79"/></marker>
+<marker id="orange" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 0 0 L 8 4 L 0 8 Z" fill="#b95b19"/></marker>
+</defs><g font-family="Arial, DejaVu Sans, sans-serif">
+<rect x="0" y="0" width="1920" height="1080" rx="0" fill="#fff" stroke="none" stroke-width="1.6"/>
+<text x="64" y="53" font-size="42" fill="#142b43" font-weight="700" text-anchor="start">MVP Architecture</text>
+<text x="64" y="88" font-size="23" fill="#526576" font-weight="400" text-anchor="start">Calls and responsibilities in the implemented system</text>
+<text x="1265" y="52" font-size="20" fill="#526576" font-weight="400" text-anchor="start">Solid arrows: calls</text>
+<text x="1265" y="81" font-size="20" fill="#526576" font-weight="400" text-anchor="start">Dashed arrows: supporting dependencies</text>
+<text x="64" y="194" font-size="18" fill="#526576" font-weight="700" text-anchor="start">ENTRY PATHS</text>
+<text x="550" y="194" font-size="18" fill="#526576" font-weight="700" text-anchor="start">GOVERNANCE CONTROL PLANE</text>
+<text x="1230" y="145" font-size="18" fill="#526576" font-weight="700" text-anchor="start">SEPARATE ANALYSIS SERVICES</text>
+<text x="1230" y="568" font-size="18" fill="#526576" font-weight="700" text-anchor="start">POLICY AND WORKFLOW</text>
+<text x="1640" y="385" font-size="18" fill="#526576" font-weight="700" text-anchor="start">TRANSFER CONTROLS</text>
+<path d="M 64 730 H 26 V 121 H 1608 V 225 H 1595" fill="none" stroke="#147b79" stroke-width="2.5" marker-end="url(#teal)"/>
+<rect x="630" y="104" width="482" height="32" rx="0" fill="#fff" stroke="none" stroke-width="1.6"/>
+<text x="642" y="127" font-size="20" fill="#147b79" font-weight="600" text-anchor="start">Enterprise Discovery calls ML directly</text>
+<path d="M 354 306 H 550" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 354 436 H 430 V 323 H 550" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 354 582 H 464 V 340 H 550" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 354 730 H 498 V 357 H 550" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<text x="367" y="291" font-size="19" fill="#526576" font-weight="400" text-anchor="start">REST</text>
+<text x="367" y="421" font-size="19" fill="#526576" font-weight="400" text-anchor="start">/api/</text>
+<text x="365" y="715" font-size="18" fill="#147b79" font-weight="400" text-anchor="start">ML handoff</text>
+<path d="M 64 582 H 45 V 306 H 64" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<text x="54" y="513" font-size="17" fill="#526576" font-weight="400" text-anchor="start">polls</text>
+<path d="M 990 450 H 1060 V 225 H 1230" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 990 478 H 1090 V 345 H 1230" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 990 506 H 1120 V 465 H 1230" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 990 623 H 1165 V 620 H 1230" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 990 690 H 1188 V 745 H 1230" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 990 538 H 1603 V 468 H 1640" fill="none" stroke="#b95b19" stroke-width="3" marker-end="url(#orange)"/>
+<rect x="1260" y="516" width="267" height="31" rx="0" fill="#fff" stroke="none" stroke-width="1.6"/>
+<text x="1270" y="538" font-size="21" fill="#b95b19" font-weight="600" text-anchor="start">Transfer evaluation</text>
+<path d="M 1755 525 V 600" fill="none" stroke="#b95b19" stroke-width="3" marker-end="url(#orange)"/>
+<text x="1769" y="572" font-size="20" fill="#b95b19" font-weight="400" text-anchor="start">inspect</text>
+<path d="M 970 762 V 827 H 1640" fill="none" stroke="#b95b19" stroke-width="3" marker-end="url(#orange)"/>
+<text x="1045" y="818" font-size="23" fill="#b95b19" font-weight="600" text-anchor="start">HTTP POST only after transfer ALLOW</text>
+<path d="M 645 762 V 859 H 289 V 884" fill="none" stroke="#7d8fa3" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#slate)"/>
+<path d="M 755 762 V 884" fill="none" stroke="#7d8fa3" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#slate)"/>
+<rect x="64" y="260" width="290" height="92" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 64 267 V 345" stroke="#245d9d" stroke-width="5"/>
+<text x="84" y="295" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">Appsmith</text>
+<text x="84" y="324" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Governance form</text>
+<rect x="64" y="390" width="290" height="92" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 64 397 V 475" stroke="#245d9d" stroke-width="5"/>
+<text x="84" y="425" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">Governance Portal</text>
+<text x="84" y="454" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Nginx /api proxy</text>
+<rect x="64" y="535" width="290" height="94" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 64 542 V 622" stroke="#245d9d" stroke-width="5"/>
+<text x="84" y="570" font-size="23" fill="#142b43" font-weight="600" text-anchor="start">Appsmith Discovery</text>
+<text x="84" y="599" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Poll + analysis triggers</text>
+<rect x="64" y="683" width="290" height="94" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 64 690 V 770" stroke="#147b79" stroke-width="5"/>
+<text x="84" y="718" font-size="22" fill="#142b43" font-weight="600" text-anchor="start">Enterprise Discovery</text>
+<text x="84" y="747" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Normalized source events</text>
+<rect x="550" y="276" width="440" height="102" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 550 283 V 371" stroke="#245d9d" stroke-width="5"/>
+<text x="570" y="311" font-size="30" fill="#142b43" font-weight="600" text-anchor="start">Caddy endpoint</text>
+<text x="570" y="340" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Health checks and load balancing</text>
+<rect x="550" y="413" width="440" height="349" rx="10" fill="#142b43" stroke="#142b43" stroke-width="2"/>
+<text x="575" y="454" font-size="32" fill="#fff" font-weight="700" text-anchor="start">Governance API</text>
+<rect x="575" y="485" width="182" height="61" rx="5" fill="#244762" stroke="#668298" stroke-width="1.6"/>
+<rect x="782" y="485" width="182" height="61" rx="5" fill="#244762" stroke="#668298" stroke-width="1.6"/>
+<text x="666" y="526" font-size="26" fill="#fff" font-weight="600" text-anchor="middle">Replica A</text>
+<text x="873" y="526" font-size="26" fill="#fff" font-weight="600" text-anchor="middle">Replica B</text>
+<text x="575" y="582" font-size="18" fill="#bdd0df" font-weight="600" text-anchor="start">Inside each replica</text>
+<text x="575" y="618" font-size="25" fill="#fff" font-weight="400" text-anchor="start">Inventory and orchestration</text>
+<text x="575" y="654" font-size="25" fill="#fff" font-weight="400" text-anchor="start">Compliance and guidance</text>
+<text x="575" y="690" font-size="25" fill="#fff" font-weight="400" text-anchor="start">Training and egress execution</text>
+<text x="575" y="732" font-size="17" fill="#d4e0e9" font-weight="400" text-anchor="start">Separate endpoints invoke the required controls</text>
+<path d="M 650 378 V 398 H 560 V 515 H 575" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<path d="M 865 378 V 398 H 978 V 515 H 964" fill="none" stroke="#7d8fa3" stroke-width="2.5" marker-end="url(#slate)"/>
+<rect x="1230" y="180" width="365" height="90" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 1230 187 V 263" stroke="#147b79" stroke-width="5"/>
+<text x="1250" y="215" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">ML Analytics</text>
+<text x="1250" y="244" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Anomaly + classification</text>
+<rect x="1230" y="300" width="365" height="90" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 1230 307 V 383" stroke="#245d9d" stroke-width="5"/>
+<text x="1250" y="335" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">Risk Engine</text>
+<text x="1250" y="364" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Deterministic risk score</text>
+<rect x="1230" y="420" width="365" height="90" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 1230 427 V 503" stroke="#245d9d" stroke-width="5"/>
+<text x="1250" y="455" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">Security Scanner</text>
+<text x="1250" y="484" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Application findings</text>
+<rect x="1230" y="575" width="365" height="90" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 1230 582 V 658" stroke="#7951a0" stroke-width="5"/>
+<text x="1250" y="610" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">OPA</text>
+<text x="1250" y="639" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Governance + access policy</text>
+<rect x="1230" y="700" width="365" height="90" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 1230 707 V 783" stroke="#7951a0" stroke-width="5"/>
+<text x="1250" y="735" font-size="23" fill="#142b43" font-weight="600" text-anchor="start">Governance Automation</text>
+<text x="1250" y="764" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Approvals + JIT lifecycle</text>
+<rect x="1640" y="414" width="231" height="111" rx="7" fill="#fff8f0" stroke="#d7b796" stroke-width="1.6"/>
+<text x="1658" y="448" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">Integration</text>
+<text x="1658" y="480" font-size="28" fill="#142b43" font-weight="600" text-anchor="start">Gateway</text>
+<text x="1658" y="510" font-size="19" fill="#b95b19" font-weight="600" text-anchor="start">ALLOW / BLOCK</text>
+<rect x="1640" y="600" width="231" height="90" rx="7" fill="#fff" stroke="#c8d3df" stroke-width="1.6"/>
+<path d="M 1640 607 V 683" stroke="#b95b19" stroke-width="5"/>
+<text x="1660" y="635" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">DLP Engine</text>
+<text x="1660" y="664" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Content inspection</text>
+<rect x="1640" y="783" width="231" height="78" rx="7" fill="#fff8f0" stroke="#d7b796" stroke-width="1.6"/>
+<text x="1658" y="815" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">External</text>
+<text x="1658" y="845" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">destination</text>
+<rect x="64" y="884" width="450" height="94" rx="5" fill="#f4f7fa" stroke="#ccd6df" stroke-width="1.6"/>
+<text x="82" y="915" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">PostgreSQL</text>
+<text x="82" y="943" font-size="18" fill="#526576" font-weight="400" text-anchor="start">Direct clients: API A/B, Enterprise Discovery,</text>
+<text x="82" y="966" font-size="18" fill="#526576" font-weight="400" text-anchor="start">Governance Automation</text>
+<rect x="536" y="884" width="503" height="94" rx="5" fill="#f4f7fa" stroke="#ccd6df" stroke-width="1.6"/>
+<text x="554" y="915" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">Vault</text>
+<text x="554" y="943" font-size="18" fill="#526576" font-weight="400" text-anchor="start">DB credentials: API A/B, Enterprise, Automation</text>
+<text x="554" y="966" font-size="18" fill="#526576" font-weight="400" text-anchor="start">Appsmith credential: Discovery worker</text>
+<rect x="1063" y="884" width="808" height="94" rx="5" fill="#f4f7fa" stroke="#ccd6df" stroke-width="1.6"/>
+<text x="1082" y="915" font-size="26" fill="#142b43" font-weight="600" text-anchor="start">Monitoring</text>
+<text x="1082" y="943" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Prometheus scrapes API A/B, OPA, Gateway and itself</text>
+<text x="1082" y="969" font-size="21" fill="#526576" font-weight="400" text-anchor="start">Grafana queries Prometheus</text>
+<rect x="64" y="1000" width="1807" height="48" rx="5" fill="#f7f4fa" stroke="#ddd3e7" stroke-width="1.6"/>
+<text x="82" y="1032" font-size="23" fill="#7951a0" font-weight="600" text-anchor="start">DevSecOps validation</text>
+<text x="400" y="1032" font-size="21" fill="#526576" font-weight="400" text-anchor="start">GitHub Actions, pytest, OPA tests, SonarQube, Trivy, ZAP and Dependabot</text>
+<text x="64" y="1072" font-size="17" fill="#526576" font-weight="400" text-anchor="start">Logical overview: responses and detailed network boundaries omitted. Each arrow represents a separate supported call.</text>
+<text x="1871" y="1072" font-size="17" fill="#526576" font-weight="600" text-anchor="end">MVP V5</text>
+</g></svg>
