@@ -7,7 +7,7 @@
 | Date opened | 2026-10-19 UTC |
 | Purpose | Demonstrate the existing LCNC MVP from the Governance Portal at `http://localhost:3000`, with service status, controlled actions, and their evidence in one interface. |
 | Type | Planned functional enhancement to the existing MVP. This requires portal and API integration work; it is not just a diagram or styling change. |
-| Status | Source baseline, Mac baseline tag, clean feature branch, and reported container image IDs confirmed. Design prepared; implementation not started. |
+| Status | Documentation committed on the Mac as `b7a3006`. Increment 1 code and local focused checks prepared; Mac collection, deployment, and live verification pending. |
 | Change owner | Project owner; final reviewer for the exam demonstration. |
 | Working branch | `feature/unified-exam-view`, starting at `3179166017b2573d8883b478c06677cf94866121`. |
 | Current authorization | The project owner requested that work begin with a baseline and change-management plan. |
@@ -166,7 +166,7 @@ A pull request is the review record. Do not assume a GitHub ruleset or required-
 | Build and CI | Valid Compose configuration; applicable Python/OPA checks; meaningful tests for new status/actions; relevant security scans and Sonar gate reviewed. Add browser interaction checks for the new exam journey and failure states. |
 | Local rehearsal | User's Mac runs the changed services successfully; one successful and appropriate negative scenario are recorded for each changed control path. |
 
-Tests should resolve concrete risks. Do not add tests that only mirror markup or rerun unrelated suites repeatedly without a reason. No test results for this new feature are claimed yet.
+Tests should resolve concrete risks. Do not add tests that only mirror markup or rerun unrelated suites repeatedly without a reason. Increment 1 focused results are recorded below; the remaining acceptance and release gates are still pending.
 
 ## 7. Rollback and data protection
 
@@ -180,14 +180,17 @@ Vault development restart can require `scripts/bootstrap-vault.sh` and fresh wor
 
 ## 8. Immediate next step on the Mac
 
-The baseline tag and feature branch already exist locally. Do not recreate them. Apply and review the documentation patch on `feature/unified-exam-view`, then commit these two files:
+The baseline tag, feature branch, and documentation commit already exist on the Mac. Do not recreate them or reapply the documentation patch. Continue on `feature/unified-exam-view` with increment 1.
 
-- `governance/change-management/CR-001-unified-exam-view.md`
-- `architecture/unified-exam-view-design.md`
+The project owner confirmed the documentation commit `b7a3006` and a clean feature branch. The next patch introduces increment 1: the collector, shared status contract, API route, two read-only directory mounts, CI coverage, and the [local verification runbook](../../docs/runbooks/unified-exam-status.md). Apply that patch, run the focused tests and a one-shot collector, then inspect the output before deploying the API replicas. Image preservation and data/configuration recovery preparation remain deployment gates.
 
-Suggested commit message: `docs: record unified exam view baseline and design`.
+### Increment 1 implementation evidence
 
-The documentation patch does not deploy runtime changes. Image preservation and data/configuration recovery preparation remain deployment gates. The first implementation increment is the status collector and its API contract, followed by the portal overview; lifecycle controls follow after those are validated.
+The collector uses fixed project-scoped Docker commands and selected inspection fields. Both API replicas read `/run/observability/platform-status.json`; no Docker socket is mounted. A new `GET /exam/platform-status` route returns all 20 service entries, observation freshness, and explicit unknown/missing/multiple states. Fresh summary counts are withheld when the observation is stale or unavailable. Business endpoint checks remain `not_configured` until a later increment.
+
+Prepared changes are limited to the collector and contract modules, API route registration, two Compose mounts, the ignored snapshot directory, tests/CI, and documentation. No policy, approval, database schema, or outbound-execution logic was changed.
+
+Validation in the review workspace: 44 focused tests passed under Python 3.13.16, including existing risk and dependency-failure checks. The actual Governance API route was exercised through an HTTP test client and correctly returned unavailable observation without a snapshot. The test client emitted an upstream deprecation warning. Compose catalog and mount structure were checked from YAML. This workspace has no Docker engine; real CLI collection, `docker compose config`, image builds, live mounts, both running replicas, and the portal proxy remain Mac acceptance checks. A fresh Sonar quality gate and full release regression are not claimed.
 
 ## 9. Change log
 
@@ -198,3 +201,27 @@ The documentation patch does not deploy runtime changes. Image preservation and 
 | 2026-10-19 | Mac working tree confirmed clean on `main` at `3179166`; both whitespace checks passed; image IDs for all 20 containers recorded from user output | Ready for the Mac source tag and feature branch; runtime image preservation and data recovery preparation remain later deployment gates. |
 | 2026-10-19 | Mac baseline tag verified at `3179166`; clean `feature/unified-exam-view` branch confirmed | Source checkpoint complete; no remote publication claimed. |
 | 2026-10-19 | Dashboard sections, status contract, action mapping, evidence limits, and implementation increments documented | Design prepared for the first documentation commit; runtime implementation pending. |
+| 2026-10-19 | Owner confirmed documentation commit `b7a3006` and a clean feature branch | Baseline/design commit complete on the Mac. |
+| 2026-10-19 | Increment 1 collector/API contract implemented and 44 focused tests passed on Python 3.13.16 | Patch prepared; live Mac verification and deployment pending. |
+
+
+## Increment 1 runtime verification — 2026-10-19
+
+- Automated validation: 44 tests passed; one upstream deprecation warning.
+- Both API replicas deployed and passed inventory reads: 14 applications each.
+- Both replicas see the same snapshot through read-only observability mounts.
+- Observed platform: 20 running containers, 14 Docker-healthy,
+  six without configured Docker health checks.
+- Caddy and portal paths passed five requests each with matching timestamps.
+- Stale-data handling passed: service observations become stale and current
+  summary counts are withheld.
+- Immediate refresh recovery intermittently returned snapshot_missing.
+  Root cause remains unconfirmed; this is an open acceptance issue.
+- Three subsequent refresh cycles passed through both public entry paths.
+- Continuous collection produced five distinct current snapshots across
+  70 portal requests, with zero failed reads.
+- A transient Caddy 502 during replica recreation recovered; this deployment
+  does not establish zero-downtime rollout.
+- Continuous collection currently requires a running host terminal process.
+- Increment 1 provides the collector and API endpoint. The unified portal UI
+  and complete workflow acceptance remain pending.

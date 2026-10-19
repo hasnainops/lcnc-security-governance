@@ -2,6 +2,8 @@
 
 Status: planned design for CR-001; no features in this document have been deployed by the documentation patch.
 
+Implementation update: increment 1 prepares the Docker status collector and API route. Functional probes remain explicitly `not_configured`; portal UI and workflow integrations are later increments. See the [increment 1 runbook](../docs/runbooks/unified-exam-status.md) for actual checks and deployment steps. Live Mac verification is still pending.
+
 Source examined: `3179166017b2573d8883b478c06677cf94866121`. Working branch: `feature/unified-exam-view`. Change control, baseline evidence, acceptance, and rollback are in [CR-001](../governance/change-management/CR-001-unified-exam-view.md).
 
 ## 1. User experience

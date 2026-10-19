@@ -247,6 +247,7 @@ services:
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro
+      - ./.runtime-observability:/run/observability:ro
     secrets:
       - governance_api_vault_secret_id
     expose:
@@ -306,6 +307,7 @@ services:
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro
+      - ./.runtime-observability:/run/observability:ro
     secrets:
       - governance_api_vault_secret_id
     expose:
