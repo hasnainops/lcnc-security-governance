@@ -550,3 +550,118 @@ def test_get_connection_uses_vault_dynamic_credentials_path(
 
     assert result is connection
     assert calls == [config]
+
+
+# Token renewal regression coverage
+
+def test_renewal_extends_cached_token(monkeypatch):
+    monkeypatch.setattr(database, "_cached_vault_token", "old-token")
+    monkeypatch.setattr(database, "_vault_token_valid_until", 500.0)
+    monkeypatch.setattr(database, "_cache_deadline", lambda ttl: 999.0)
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        return FakeResponse(200, {
+            "auth": {"client_token": "old-token", "lease_duration": 1200}
+        })
+
+    monkeypatch.setattr(database.httpx, "post", post)
+    database._renew_vault_token_before_db_refresh(
+        {"vault_addr": "http://vault:8200"}
+    )
+
+    assert len(calls) == 1
+    assert calls[0][0].endswith("/auth/token/renew-self")
+    assert calls[0][1]["headers"]["X-Vault-Token"] == "old-token"
+    assert database._vault_token_valid_until == 999.0
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_rejected_renewal_clears_token(monkeypatch, status):
+    monkeypatch.setattr(database, "_cached_vault_token", "old-token")
+    monkeypatch.setattr(database, "_vault_token_valid_until", 500.0)
+    monkeypatch.setattr(
+        database.httpx, "post",
+        lambda *args, **kwargs: FakeResponse(status, {})
+    )
+
+    database._renew_vault_token_before_db_refresh(
+        {"vault_addr": "http://vault:8200"}
+    )
+
+    assert database._cached_vault_token is None
+    assert database._vault_token_valid_until == 0.0
+
+
+def test_renewal_server_failure_does_not_login(monkeypatch):
+    monkeypatch.setattr(database, "_cached_vault_token", "old-token")
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return FakeResponse(500, {})
+
+    monkeypatch.setattr(database.httpx, "post", post)
+
+    with pytest.raises(RuntimeError):
+        database._get_database_credentials(
+            {"vault_addr": "http://vault:8200"}
+        )
+
+    assert len(calls) == 1
+    assert calls[0].endswith("/auth/token/renew-self")
+
+
+def test_invalid_renewal_ttl_is_rejected(monkeypatch):
+    monkeypatch.setattr(database, "_cached_vault_token", "old-token")
+    monkeypatch.setattr(
+        database.httpx, "post",
+        lambda *args, **kwargs: FakeResponse(200, {
+            "auth": {"client_token": "old-token", "lease_duration": 0}
+        })
+    )
+
+    with pytest.raises(RuntimeError, match="invalid token or TTL"):
+        database._renew_vault_token_before_db_refresh(
+            {"vault_addr": "http://vault:8200"}
+        )
+
+
+def test_cached_db_credentials_skip_renewal(monkeypatch):
+    monkeypatch.setattr(database, "_cached_db_username", "user")
+    monkeypatch.setattr(database, "_cached_db_password", "password")
+    monkeypatch.setattr(database, "_db_credentials_valid_until", float("inf"))
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("Cached database credentials must not trigger renewal")
+
+    monkeypatch.setattr(database.httpx, "post", unexpected)
+
+    assert database._get_database_credentials({}) == ("user", "password")
+
+
+def test_db_refresh_renews_before_using_token(monkeypatch):
+    monkeypatch.setattr(database, "_cached_vault_token", "old-token")
+    events = []
+
+    def renew(config):
+        events.append("renew")
+
+    def login(config, force=False):
+        events.append("login")
+        return "token"
+
+    def credentials(config, token):
+        events.append("credentials")
+        return FakeResponse(200, {
+            "lease_duration": 900,
+            "data": {"username": "user", "password": "password"},
+        })
+
+    monkeypatch.setattr(database, "_renew_vault_token_before_db_refresh", renew)
+    monkeypatch.setattr(database, "_login_to_vault", login)
+    monkeypatch.setattr(database, "_request_database_credentials", credentials)
+
+    assert database._get_database_credentials({}) == ("user", "password")
+    assert events == ["renew", "login", "credentials"]

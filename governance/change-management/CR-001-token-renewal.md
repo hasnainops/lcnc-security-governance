@@ -1,0 +1,27 @@
+# CR-001: Governance API token renewal
+
+## Change
+Renew the cached Vault token before requesting replacement database
+credentials. Renewal rejection with HTTP 400/403 clears the cached token
+and allows reauthentication. Transport/server failures propagate without
+an additional login attempt. Cached database credentials avoid extra
+renewal requests.
+
+No Vault policies, credential lifetimes or use limits were changed.
+
+## Verification — 2026-10-20
+- Existing and added database tests: 17 passed.
+- Git whitespace validation passed.
+- API A and API B deployed separately; both read 14 applications.
+- Live diagnostic renewal passed; token was renewable with 1199 seconds
+  remaining. Diagnostic token was revoked afterward.
+- Previous replica images preserved under:
+  lcnc-governance-api-a:before-token-renewal-2937d54
+  lcnc-governance-api-b:before-token-renewal-2937d54
+
+## Remaining acceptance
+- Renewal across a full live database-lease cycle remains unverified.
+- Token maximum lifetime remains one hour; reauthentication is still needed.
+- Secret ID expiry and use limits still require controlled maintenance.
+- Automatic Secret ID rotation and lockout recovery are not implemented.
+- This checkpoint does not establish complete CR-001 acceptance.

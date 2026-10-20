@@ -154,6 +154,39 @@ def _login_to_vault(config, force=False):
         return token
 
 
+def _renew_vault_token_before_db_refresh(config):
+    """Renew before obtaining replacement database credentials.
+
+    Caller holds the cache lock. Renewal before the token deadline
+    avoids waiting until the next database refresh, when it may be expired.
+    """
+    global _cached_vault_token
+    global _vault_token_valid_until
+
+    if not _cached_vault_token:
+        return
+
+    response = httpx.post(
+        f"{config['vault_addr']}/v1/auth/token/renew-self",
+        headers={"X-Vault-Token": _cached_vault_token},
+        timeout=5.0,
+    )
+    if response.status_code in {400, 403}:
+        _cached_vault_token = None
+        _vault_token_valid_until = 0.0
+        return
+
+    # Do not consume another login use on transport or server failures.
+    response.raise_for_status()
+    auth = response.json().get("auth") or {}
+    token = auth.get("client_token")
+    ttl = int(auth.get("lease_duration") or 0)
+    if not token or ttl <= 0:
+        raise RuntimeError("Vault renewal returned an invalid token or TTL.")
+    _cached_vault_token = token
+    _vault_token_valid_until = _cache_deadline(ttl)
+
+
 def _request_database_credentials(
     config,
     token,
@@ -190,6 +223,8 @@ def _get_database_credentials(config):
                 _cached_db_username,
                 _cached_db_password,
             )
+
+        _renew_vault_token_before_db_refresh(config)
 
         token = _login_to_vault(
             config
