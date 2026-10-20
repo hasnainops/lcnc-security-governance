@@ -527,7 +527,7 @@ services:
     restart: unless-stopped
 
   sonarqube:
-    image: sonarqube:26.7.0.124771-community
+    image: sonarqube:26.8.0.126808-community
     container_name: lcnc-sonarqube
     ports:
       - "127.0.0.1:9000:9000"
