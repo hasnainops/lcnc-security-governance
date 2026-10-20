@@ -1,4 +1,33 @@
 let selectedApplicationId = null;
+let selectionGeneration = 0;
+let evaluationPending = false;
+let inventoryGeneration = 0;
+const selector = document.getElementById("applicationSelector");
+const selectionStatus = document.getElementById("selectionStatus");
+
+async function portalRead(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function clearSelection() {
+  selectionGeneration += 1;
+  selectedApplicationId = null;
+  selector.value = "";
+  detailPanel.classList.add("hidden");
+  selectionStatus.textContent = "Select an application to inspect its stored evidence.";
+}
+selector.addEventListener("change", () => {
+  if (selector.value) loadHistory(selector.value);
+  else clearSelection();
+});
 
 const rows = document.getElementById("applicationRows");
 const detailPanel = document.getElementById("detailPanel");
@@ -30,47 +59,68 @@ function showMessage(text) {
 }
 
 async function loadApplications() {
-  const response = await fetch("/api/applications");
+  const generation = ++inventoryGeneration;
+  document.getElementById("inventoryStatus").textContent = "Refreshing application inventory…";
+  try {
+    const applications = await portalRead("/api/applications");
+    if (generation !== inventoryGeneration) return;
+    if (!Array.isArray(applications)) throw new Error("Invalid application inventory");
+    selector.innerHTML = '<option value="">Choose an application</option>';
+    for (const app of applications) {
+      const option = document.createElement("option");
+      option.value = app.id;
+      option.textContent = `${app.name} · ${app.id}`;
+      selector.appendChild(option);
+    }
+    if (selectedApplicationId && !applications.some(app => app.id === selectedApplicationId)) clearSelection();
+    selector.value = selectedApplicationId || "";
+    document.getElementById("inventoryStatus").textContent =
+      `Inventory retrieved ${new Date().toISOString()} · ${applications.length} applications. Select one below.`;
 
-  if (!response.ok) {
-    throw new Error("Unable to retrieve applications");
-  }
+    document.getElementById("applicationCount").textContent =
+      applications.length;
 
-  const applications = await response.json();
+    document.getElementById("criticalCount").textContent =
+      applications.filter(app => app.risk_level === "critical").length;
 
-  document.getElementById("applicationCount").textContent =
-    applications.length;
+    document.getElementById("blockedCount").textContent =
+      applications.filter(app => app.governance_status === "blocked").length;
 
-  document.getElementById("criticalCount").textContent =
-    applications.filter(app => app.risk_level === "critical").length;
+    document.getElementById("unregisteredCount").textContent =
+      applications.filter(app => app.registration_status === "unregistered").length;
 
-  document.getElementById("blockedCount").textContent =
-    applications.filter(app => app.governance_status === "blocked").length;
+    rows.innerHTML = "";
 
-  document.getElementById("unregisteredCount").textContent =
-    applications.filter(app => app.registration_status === "unregistered").length;
+    for (const app of applications) {
+      const row = document.createElement("tr");
 
-  rows.innerHTML = "";
+      row.innerHTML = `
+        <td><strong>${escapeHtml(app.name)}</strong></td>
+        <td>${escapeHtml(app.platform)}</td>
+        <td>${badge(app.registration_status)}</td>
+        <td>${escapeHtml(app.owner_name || "Unknown")}</td>
+        <td>
+          ${badge(app.risk_level || "not assessed")}
+          ${app.risk_score !== null ? ` ${escapeHtml(app.risk_score)}` : ""}
+        </td>
+        <td>${badge(app.governance_outcome || "not evaluated")}</td>
+      `;
 
-  for (const app of applications) {
-    const row = document.createElement("tr");
-
-    row.innerHTML = `
-      <td><strong>${escapeHtml(app.name)}</strong></td>
-      <td>${escapeHtml(app.platform)}</td>
-      <td>${badge(app.registration_status)}</td>
-      <td>${escapeHtml(app.owner_name || "Unknown")}</td>
-      <td>
-        ${badge(app.risk_level || "not assessed")}
-        ${app.risk_score !== null ? ` ${escapeHtml(app.risk_score)}` : ""}
-      </td>
-      <td>${badge(app.governance_outcome || "not evaluated")}</td>
-    `;
-
-    row.addEventListener("click", () => loadHistory(app.id));
-    rows.appendChild(row);
+      row.addEventListener("click", () => loadHistory(app.id));
+      rows.appendChild(row);
+    }
+  } catch (error) {
+    if (generation !== inventoryGeneration) return;
+    document.getElementById("inventoryStatus").textContent = `Inventory unavailable: ${error.message}`;
+    for (const id of ["applicationCount", "criticalCount", "blockedCount", "unregisteredCount"]) {
+      document.getElementById(id).textContent = "—";
+    }
+    rows.innerHTML = "";
+    selector.innerHTML = '<option value="">Inventory unavailable</option>';
+    clearSelection();
   }
 }
+
 
 function renderDetail(label, value) {
   return `
@@ -81,16 +131,9 @@ function renderDetail(label, value) {
   `;
 }
 
-async function loadComplianceEvidence(applicationId) {
-  const response = await fetch(
-    `/api/applications/${applicationId}/compliance-evidence`
-  );
-
-  if (!response.ok) {
-    throw new Error("Unable to retrieve compliance evidence");
-  }
-
-  const data = await response.json();
+async function loadComplianceEvidence(applicationId, generation) {
+  const data = await portalRead(`/api/applications/${applicationId}/compliance-evidence`);
+  if (generation !== selectionGeneration) return;
   const container = document.getElementById("complianceEvidence");
 
   container.innerHTML = "";
@@ -148,113 +191,136 @@ async function loadComplianceEvidence(applicationId) {
 
 async function loadHistory(applicationId) {
   selectedApplicationId = applicationId;
+  selector.value = applicationId;
+  const generation = ++selectionGeneration;
+  selectionStatus.textContent = `Loading evidence for ${applicationId}…`;
+  detailPanel.classList.add("hidden");
+  document.getElementById("evaluateButton").disabled = true;
+  try {
+    const data = await portalRead(`/api/applications/${applicationId}/history`);
+    if (generation !== selectionGeneration) return;
+    const app = data.application;
 
-  const response = await fetch(
-    `/api/applications/${applicationId}/history`
-  );
+    document.getElementById("detailName").textContent = app.name;
+    document.getElementById("detailPlatform").textContent =
+      `${app.platform} · ${app.external_id} · UUID: ${applicationId}`;
 
-  if (!response.ok) {
-    throw new Error("Unable to retrieve application history");
+    document.getElementById("applicationDetails").innerHTML =
+      renderDetail("Registration", app.registration_status) +
+      renderDetail("Owner", app.owner_name || "Unknown") +
+      renderDetail("Business Unit", app.business_unit || "Unknown") +
+      renderDetail("Data Classification", app.data_classification) +
+      renderDetail(
+        "External Integration",
+        app.external_integration === null
+          ? "Unknown"
+          : app.external_integration ? "Yes" : "No"
+      ) +
+      renderDetail("Risk", `${app.risk_score ?? "—"} / ${app.risk_level ?? "not assessed"}`) +
+      renderDetail("Governance", app.governance_outcome || "Not evaluated") +
+      renderDetail("Governance Status", app.governance_status) +
+      renderDetail("Last Seen", app.last_seen_at);
+
+    const riskHistory = document.getElementById("riskHistory");
+    riskHistory.innerHTML = "";
+
+    for (const risk of data.risk_assessments) {
+      const element = document.createElement("div");
+      element.className = "history-entry";
+
+      element.innerHTML = `
+        <p><strong>${escapeHtml(risk.score)} / ${escapeHtml(risk.level)}</strong></p>
+        <p>Model: ${escapeHtml(risk.model_version)}</p>
+        <p>${escapeHtml(risk.assessed_at)}</p>
+      `;
+
+      riskHistory.appendChild(element);
+    }
+
+    const policyHistory = document.getElementById("policyHistory");
+    policyHistory.innerHTML = "";
+
+    for (const policy of data.policy_decisions) {
+      const element = document.createElement("div");
+      element.className = "history-entry";
+
+      element.innerHTML = `
+        <p><strong>${escapeHtml(policy.action.toUpperCase())}</strong></p>
+        <p>${escapeHtml(policy.reasons.join(" ") || "No policy violations")}</p>
+        <p>Policy: ${escapeHtml(policy.policy_version)}</p>
+        <p>${escapeHtml(policy.evaluated_at)}</p>
+      `;
+
+      policyHistory.appendChild(element);
+    }
+
+    const governanceHistory =
+      document.getElementById("governanceHistory");
+
+    governanceHistory.innerHTML = "";
+
+    for (const governance of data.governance_decisions) {
+      const element = document.createElement("div");
+      element.className = "history-entry";
+
+      element.innerHTML = `
+        <p><strong>${escapeHtml(governance.outcome)}</strong></p>
+        <p>Status: ${escapeHtml(governance.status)}</p>
+        <p>Required role: ${escapeHtml(governance.required_role || "None")}</p>
+        <p>${escapeHtml(governance.reasons.join(" "))}</p>
+        <p>${escapeHtml(governance.created_at)}</p>
+      `;
+
+      governanceHistory.appendChild(element);
+    }
+
+    try {
+      await loadComplianceEvidence(applicationId, generation);
+    } catch {
+      if (generation === selectionGeneration) {
+        document.getElementById("complianceEvidence").textContent = "Control evidence unavailable.";
+      }
+    }
+    if (generation !== selectionGeneration) return;
+
+    await loadV2Evidence(
+      applicationId,
+      data,
+      generation
+    );
+    if (generation !== selectionGeneration) return;
+    for (const id of ["riskHistory", "policyHistory", "governanceHistory"]) {
+      if (!document.getElementById(id).children.length) {
+        document.getElementById(id).textContent = "No stored records returned.";
+      }
+    }
+    selectionStatus.textContent = `Selected UUID: ${applicationId} · evidence retrieved ${new Date().toISOString()}`;
+    detailPanel.classList.remove("hidden");
+  } catch (error) {
+    if (generation === selectionGeneration) {
+      selectionStatus.textContent = `Evidence unavailable for ${applicationId}: ${error.message}`;
+    }
+  } finally {
+    if (generation === selectionGeneration) {
+      document.getElementById("evaluateButton").disabled = evaluationPending || detailPanel.classList.contains("hidden");
+    }
   }
-
-  const data = await response.json();
-  const app = data.application;
-
-  document.getElementById("detailName").textContent = app.name;
-  document.getElementById("detailPlatform").textContent =
-    `${app.platform} · ${app.external_id}`;
-
-  document.getElementById("applicationDetails").innerHTML =
-    renderDetail("Registration", app.registration_status) +
-    renderDetail("Owner", app.owner_name || "Unknown") +
-    renderDetail("Business Unit", app.business_unit || "Unknown") +
-    renderDetail("Data Classification", app.data_classification) +
-    renderDetail(
-      "External Integration",
-      app.external_integration === null
-        ? "Unknown"
-        : app.external_integration ? "Yes" : "No"
-    ) +
-    renderDetail("Risk", `${app.risk_score ?? "—"} / ${app.risk_level ?? "not assessed"}`) +
-    renderDetail("Governance", app.governance_outcome || "Not evaluated") +
-    renderDetail("Governance Status", app.governance_status) +
-    renderDetail("Last Seen", app.last_seen_at);
-
-  const riskHistory = document.getElementById("riskHistory");
-  riskHistory.innerHTML = "";
-
-  for (const risk of data.risk_assessments) {
-    const element = document.createElement("div");
-    element.className = "history-entry";
-
-    element.innerHTML = `
-      <p><strong>${escapeHtml(risk.score)} / ${escapeHtml(risk.level)}</strong></p>
-      <p>Model: ${escapeHtml(risk.model_version)}</p>
-      <p>${escapeHtml(risk.assessed_at)}</p>
-    `;
-
-    riskHistory.appendChild(element);
-  }
-
-  const policyHistory = document.getElementById("policyHistory");
-  policyHistory.innerHTML = "";
-
-  for (const policy of data.policy_decisions) {
-    const element = document.createElement("div");
-    element.className = "history-entry";
-
-    element.innerHTML = `
-      <p><strong>${escapeHtml(policy.action.toUpperCase())}</strong></p>
-      <p>${escapeHtml(policy.reasons.join(" ") || "No policy violations")}</p>
-      <p>Policy: ${escapeHtml(policy.policy_version)}</p>
-      <p>${escapeHtml(policy.evaluated_at)}</p>
-    `;
-
-    policyHistory.appendChild(element);
-  }
-
-  const governanceHistory =
-    document.getElementById("governanceHistory");
-
-  governanceHistory.innerHTML = "";
-
-  for (const governance of data.governance_decisions) {
-    const element = document.createElement("div");
-    element.className = "history-entry";
-
-    element.innerHTML = `
-      <p><strong>${escapeHtml(governance.outcome)}</strong></p>
-      <p>Status: ${escapeHtml(governance.status)}</p>
-      <p>Required role: ${escapeHtml(governance.required_role || "None")}</p>
-      <p>${escapeHtml(governance.reasons.join(" "))}</p>
-      <p>${escapeHtml(governance.created_at)}</p>
-    `;
-
-    governanceHistory.appendChild(element);
-  }
-
-  await loadComplianceEvidence(applicationId);
-
-  await loadV2Evidence(
-    applicationId,
-    data
-  );
-
-  detailPanel.classList.remove("hidden");
 }
 
 async function runGovernanceEvaluation() {
-  if (!selectedApplicationId) {
+  if (!selectedApplicationId || evaluationPending) {
     return;
   }
 
+  const applicationId = selectedApplicationId;
+  evaluationPending = true;
   const button = document.getElementById("evaluateButton");
   button.disabled = true;
   button.textContent = "Evaluating...";
 
   try {
     const response = await fetch(
-      `/api/applications/${selectedApplicationId}/governance-evaluate`,
+      `/api/applications/${applicationId}/governance-evaluate`,
       {
         method: "POST"
       }
@@ -271,10 +337,13 @@ async function runGovernanceEvaluation() {
     );
 
     await loadApplications();
-    await loadHistory(selectedApplicationId);
+    if (selectedApplicationId === applicationId) await loadHistory(applicationId);
 
+  } catch (error) {
+    showMessage(`${applicationId}: ${error.message}. Check stored history before retrying.`);
   } finally {
-    button.disabled = false;
+    evaluationPending = false;
+    button.disabled = detailPanel.classList.contains("hidden");
     button.textContent = "Run Governance Evaluation";
   }
 }
@@ -300,13 +369,7 @@ loadApplications().catch(error => {
 
 async function fetchJsonOrNull(url) {
   try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return await response.json();
+    return await portalRead(url);
   } catch {
     return null;
   }
@@ -715,7 +778,7 @@ function renderCitizenGuidance(guidance) {
 }
 
 
-async function loadV2Evidence(applicationId, history) {
+async function loadV2Evidence(applicationId, history, generation) {
   const [
     compliance,
     guidance
@@ -727,6 +790,8 @@ async function loadV2Evidence(applicationId, history) {
       `/api/applications/${applicationId}/citizen-guidance`
     )
   ]);
+
+  if (generation !== selectionGeneration) return;
 
   renderV2Summary(
     history,

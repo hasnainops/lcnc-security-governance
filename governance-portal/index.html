@@ -10,33 +10,60 @@
   <header>
     <div>
       <h1>LCNC Security Governance</h1>
-      <p>Application inventory, risk, policy and governance decisions</p>
+      <p>Exam view · platform observations and application evidence</p>
     </div>
-    <button id="refreshButton">Refresh</button>
+    <button id="refreshButton">Refresh applications</button>
   </header>
 
   <main>
+    <section class="panel" aria-labelledby="platformHeading">
+      <div class="detail-header">
+        <div>
+          <h2 id="platformHeading">Platform overview</h2>
+          <p>Container observations are separate from application workflow outcomes.</p>
+        </div>
+        <button id="platformRefresh" type="button">Refresh status</button>
+      </div>
+      <p id="platformObservation" role="status">Loading platform observations…</p>
+      <p id="platformTime"></p>
+      <div id="platformSummary" class="summary"></div>
+      <details>
+        <summary>Inspect all 20 services and their roles</summary>
+        <p>Docker health checks and functional checks are different evidence. Functional probes are not connected in this increment.</p>
+        <div class="table-wrapper">
+          <table class="platform-table">
+            <caption>Platform service observations</caption>
+            <thead><tr><th>Service / role</th><th>Containers</th><th>Container state</th><th>Docker health</th><th>Observation</th></tr></thead>
+            <tbody id="platformRows"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+    <p id="inventoryStatus" role="status">Loading application inventory…</p>
     <section class="summary">
       <div class="metric">
-        <span id="applicationCount">0</span>
+        <span id="applicationCount">—</span>
         <small>Applications</small>
       </div>
       <div class="metric">
-        <span id="criticalCount">0</span>
+        <span id="criticalCount">—</span>
         <small>Critical Risk</small>
       </div>
       <div class="metric">
-        <span id="blockedCount">0</span>
+        <span id="blockedCount">—</span>
         <small>Blocked</small>
       </div>
       <div class="metric">
-        <span id="unregisteredCount">0</span>
+        <span id="unregisteredCount">—</span>
         <small>Unregistered</small>
       </div>
     </section>
 
     <section class="panel">
       <h2>Application Inventory</h2>
+      <label for="applicationSelector">Selected application</label>
+      <select id="applicationSelector"><option value="">Choose an application</option></select>
+      <p id="selectionStatus" role="status">Select an application to inspect its stored evidence.</p>
 
       <div class="table-wrapper">
         <table>
@@ -74,7 +101,7 @@
           <div>
             <h3>AI & Security Posture</h3>
             <p>
-              Live AI, security, compliance and citizen-developer evidence
+              Stored analysis plus current compliance and guidance; selecting an application does not rerun analysis
             </p>
           </div>
         </div>
@@ -109,6 +136,7 @@
     <div id="message" class="message hidden"></div>
   </main>
 
+  <script src="/platform-overview.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

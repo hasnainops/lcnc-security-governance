@@ -149,6 +149,9 @@ tbody tr:hover {
 .detail-header button {
   background: #111827;
   color: white;
+  align-self: flex-start;
+  flex-shrink: 0;
+  max-width: 100%;
 }
 
 .detail-grid {
@@ -352,4 +355,27 @@ tbody tr:hover {
   .control-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* CR-001 platform observations */
+#platformObservation { padding: 12px; background: #e2e8f0; border-radius: 7px; }
+#platformObservation.current { background: #e0f2fe; color: #075985; }
+#platformObservation.stale { background: #fef3c7; color: #92400e; }
+#platformObservation.unavailable { background: #fee2e2; color: #991b1b; }
+#platformTime, #selectionStatus, #inventoryStatus { color: #475569; overflow-wrap: anywhere; }
+.platform-table tbody tr { cursor: default; }
+.platform-table small { display: block; color: #475569; margin-top: 4px; }
+.platform-table caption { text-align: left; padding: 12px; }
+.platform-table .healthy { color: #166534; }
+.platform-table .unhealthy { color: #991b1b; }
+.platform-table .stale, .platform-table .unavailable { color: #64748b; }
+summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+select { max-width: 100%; padding: 10px; margin: 8px; border: 1px solid #94a3b8; border-radius: 6px; }
+button:disabled { cursor: wait; opacity: .6; }
+button:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #0284c7; outline-offset: 3px; }
+@media (max-width: 600px) {
+  main { padding: 12px; }
+  header { padding: 18px; gap: 12px; }
+  .detail-header { flex-wrap: wrap; }
+  .panel { padding: 14px; }
 }
