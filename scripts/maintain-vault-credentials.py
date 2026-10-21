@@ -51,7 +51,13 @@ def main():
         "--rotate", action="store_true",
         help="Explicitly rotate one selected role; briefly stops its workloads",
     )
+    parser.add_argument(
+        "--rotate-due", action="store_true",
+        help="Rotate only credentials approaching expiry or their use limit",
+    )
     args = parser.parse_args()
+    if args.rotate and args.rotate_due:
+        parser.error("--rotate and --rotate-due cannot be combined")
     if args.rotate:
         if not args.role or len(args.role) != 1:
             parser.error("--rotate requires exactly one --role")
@@ -66,7 +72,8 @@ def main():
     roles = tuple(dict.fromkeys(args.role or ROLES))
     now = datetime.now(timezone.utc)
     print("Checked at:", now.isoformat())
-    print("Mode: read-only; thresholds: 2 hours or 10 remaining uses")
+    mode = "rotate-due" if args.rotate_due else "read-only"
+    print(f"Mode: {mode}; thresholds: 2 hours or 10 remaining uses")
 
     try:
         locked = vault("read", "-format=json", "sys/locked-users")
@@ -116,7 +123,18 @@ def main():
 
             if is_locked is True:
                 print("  Recovery: operator review required")
-            attention |= due or is_locked is not False
+            if args.rotate_due and due and is_locked is False:
+                from vault_credential_rotation import rotate
+                try:
+                    rotate(ROOT, role, vault, contains)
+                except Exception:
+                    attention = True
+                    print("  Rotation failed or verification incomplete.")
+                    print("  Inspect workload state before retrying this role.")
+                else:
+                    print("  Due credential rotated and authentication verified.")
+            else:
+                attention |= due or is_locked is not False
 
         except Exception:
             attention = True
