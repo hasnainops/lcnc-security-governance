@@ -65,3 +65,22 @@ No Vault policies, credential lifetimes or use limits were changed.
 - API-pair and Appsmith Discovery rotation through this command remain
   unverified. Complete workflow acceptance remains pending.
 - Runtime credentials are excluded from this commit.
+
+
+## API pair and Appsmith rotation verification — 2026-10-21 UTC
+
+- Corrected rotation command passed for appsmith-discovery.
+- Its post-restart discovery cycle at 02:36:58 UTC completed with
+  three known applications and zero shadow applications.
+- Missing ML/classification metadata remains a separate application issue.
+- Corrected rotation command passed for governance-api.
+- Both API replicas accepted the mounted credential; both diagnostic
+  tokens were revoked.
+- Both replicas, Caddy and the portal returned 14 applications afterward.
+- API rotation stops both replicas temporarily; zero-downtime rotation
+  is not implemented.
+- Enterprise Discovery recovered from the earlier restart failure and
+  passed the revised helper and authentication checks; its complete
+  corrected rotation sequence has not been rerun.
+- Scheduled maintenance, automatic lockout recovery, intermittent
+  snapshot_missing and dashboard functional evidence remain open.
