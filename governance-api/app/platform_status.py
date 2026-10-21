@@ -2,6 +2,7 @@
 
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -157,13 +158,21 @@ def validated_services(snapshot):
 
 def load_snapshot(path):
     path = Path(path)
-    if not path.is_file() or path.is_symlink():
-        raise FileNotFoundError
-    with path.open("rb") as stream:
-        payload = stream.read(MAX_SNAPSHOT_BYTES + 1)
-    if len(payload) > MAX_SNAPSHOT_BYTES:
-        raise ValueError("Oversized snapshot")
-    return json.loads(payload)
+    for attempt in range(3):
+        try:
+            if not path.is_file() or path.is_symlink():
+                raise FileNotFoundError
+            with path.open("rb") as stream:
+                payload = stream.read(MAX_SNAPSHOT_BYTES + 1)
+        except FileNotFoundError:
+            if attempt == 2:
+                raise
+            time.sleep(0.05)
+            continue
+
+        if len(payload) > MAX_SNAPSHOT_BYTES:
+            raise ValueError("Oversized snapshot")
+        return json.loads(payload)
 
 
 def observation(snapshot, now):
