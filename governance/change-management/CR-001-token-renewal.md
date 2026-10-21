@@ -41,3 +41,27 @@ No Vault policies, credential lifetimes or use limits were changed.
 - No credentials were printed or added to Git.
 - Reusable maintenance tooling and scheduled rotation remain pending.
 - This verifies manual rotation, not long-term credential reliability.
+
+
+## Controlled rotation verification — 2026-10-21 UTC
+
+- Added explicit single-role rotation; default operation remains read-only.
+- Rotation refuses locked roles and unavailable credential metadata.
+- Selected workloads stop before the credential file is updated in place.
+- Credential file inode is preserved for existing container mounts.
+- Restart now targets existing container IDs directly.
+- Initial Enterprise Discovery rotation saved its credential but failed
+  during restart. Manual container start restored health; the original
+  Compose restart failure remains unexplained.
+- Revised start helper and mounted-credential verification passed live
+  for Enterprise Discovery.
+- Complete corrected rotation passed for Governance Automation:
+  stop, issuance, file update, start, mounted-credential authentication,
+  diagnostic token revocation, and subsequent health check.
+- Automated validation: 10 rotation/helper tests and six reporting tests passed.
+- Previous Secret IDs are retained until expiry or use exhaustion.
+- Rotation is operator-invoked; scheduled maintenance is not implemented.
+- Automatic lockout recovery remains disabled.
+- API-pair and Appsmith Discovery rotation through this command remain
+  unverified. Complete workflow acceptance remains pending.
+- Runtime credentials are excluded from this commit.

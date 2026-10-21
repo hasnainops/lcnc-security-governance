@@ -1,4 +1,4 @@
-"""Report local workload credentials without printing secrets or changing Vault."""
+"""Report credentials by default; rotate one role only with --rotate."""
 
 import argparse
 import json
@@ -47,7 +47,22 @@ def contains(value, target):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--role", choices=ROLES, action="append")
+    parser.add_argument(
+        "--rotate", action="store_true",
+        help="Explicitly rotate one selected role; briefly stops its workloads",
+    )
     args = parser.parse_args()
+    if args.rotate:
+        if not args.role or len(args.role) != 1:
+            parser.error("--rotate requires exactly one --role")
+        from vault_credential_rotation import rotate
+        try:
+            rotate(ROOT, args.role[0], vault, contains)
+        except Exception:
+            print("Rotation failed or verification incomplete; details withheld.")
+            print("Check selected workload status before retrying.")
+            return 1
+        return 0
     roles = tuple(dict.fromkeys(args.role or ROLES))
     now = datetime.now(timezone.utc)
     print("Checked at:", now.isoformat())
