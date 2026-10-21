@@ -25,3 +25,19 @@ No Vault policies, credential lifetimes or use limits were changed.
 - Secret ID expiry and use limits still require controlled maintenance.
 - Automatic Secret ID rotation and lockout recovery are not implemented.
 - This checkpoint does not establish complete CR-001 acceptance.
+
+
+## Manual Secret ID rotation verification — 2026-10-21 UTC
+
+- Governance API Secret ID had four remaining login uses and
+  approximately 4.77 hours before expiry; its AppRole was unlocked.
+- A fresh Secret ID was issued and the existing mounted file updated
+  in place. No containers were restarted.
+- Both API replicas continued returning inventories of 14 applications.
+- Separate diagnostic logins from both replicas accepted the mounted
+  Secret ID. Both diagnostic tokens were revoked successfully.
+- Other workload credentials had 43 remaining uses and approximately
+  4.87 hours before expiry at inspection; they were not rotated.
+- No credentials were printed or added to Git.
+- Reusable maintenance tooling and scheduled rotation remain pending.
+- This verifies manual rotation, not long-term credential reliability.
