@@ -104,3 +104,17 @@ No Vault policies, credential lifetimes or use limits were changed.
 - Authentication verification does not establish complete workload
   functionality. Sleep/wake recovery and automatic lockout recovery
   remain unverified or unimplemented.
+
+
+## Post-scheduled-rotation checks — 2026-10-22 UTC
+
+- Both API replicas, Caddy and the portal proxy passed inventory probes,
+  each returning 14 applications after scheduled credential rotations.
+- Enterprise Discovery and Governance Automation health endpoints passed;
+  these checks do not establish complete business-workflow functionality.
+- Appsmith Discovery cycles at 01:31:43 and 01:32:43 UTC completed with
+  three known applications and zero shadow applications.
+- Neither observed discovery cycle reported an authentication failure.
+- ML and classification metadata gaps remain open.
+- These observations establish post-rotation operation at the checked
+  times, not uninterrupted availability during rotation.
