@@ -84,3 +84,23 @@ No Vault policies, credential lifetimes or use limits were changed.
   corrected rotation sequence has not been rerun.
 - Scheduled maintenance, automatic lockout recovery, intermittent
   snapshot_missing and dashboard functional evidence remain open.
+
+
+## Scheduled threshold rotation evidence — 2026-10-22 UTC
+
+- Background maintenance rotated governance-api at 10 remaining uses,
+  with 3.60 hours remaining before expiry in the report.
+- Enterprise Discovery rotated with 1.09 hours remaining and 41 uses.
+- Governance Automation rotated with 1.27 hours remaining and 42 uses.
+- Appsmith Discovery rotated with 1.29 hours remaining and 42 uses.
+- All selected workloads passed mounted-credential authentication and
+  diagnostic-token revocation.
+- Enterprise Discovery completed the corrected full rotation sequence.
+- Both use-limit and expiry-threshold selection were observed live.
+- LaunchAgent inspection showed 48 runs and latest exit code zero.
+- Subsequent metadata inspection showed all roles unlocked and not due.
+- A report gap from 23:04 to 01:19 UTC was observed; its cause is
+  unconfirmed. Uninterrupted five-minute execution is not established.
+- Authentication verification does not establish complete workload
+  functionality. Sleep/wake recovery and automatic lockout recovery
+  remain unverified or unimplemented.
