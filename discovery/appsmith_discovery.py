@@ -6,6 +6,8 @@ from pathlib import Path
 
 import httpx
 
+from discovery_health import clear_success, record_success
+
 
 APPSMITH_BASE_URL = os.getenv(
     "APPSMITH_BASE_URL",
@@ -956,6 +958,7 @@ def run_discovery_cycle():
 
 
 def main():
+    clear_success()
     print(
         "=== Continuous Appsmith Discovery ===",
         flush=True,
@@ -970,8 +973,10 @@ def main():
     while True:
         try:
             run_discovery_cycle()
+            record_success()
 
         except Exception as exc:
+            clear_success()
             print(
                 f"[ERROR] Discovery cycle failed: {exc}",
                 file=sys.stderr,
