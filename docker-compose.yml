@@ -559,6 +559,15 @@ services:
       - sonarqube_data:/opt/sonarqube/data
       - sonarqube_logs:/opt/sonarqube/logs
       - sonarqube_extensions:/opt/sonarqube/extensions
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - body=$$(curl --silent --show-error --fail --connect-timeout 3 --max-time 10 http://127.0.0.1:9000/api/system/status)
+        && printf '%s' "$$body" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'
+      interval: 30s
+      timeout: 12s
+      retries: 3
+      start_period: 180s
     restart: unless-stopped
 
 volumes:
