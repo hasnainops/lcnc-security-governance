@@ -29,11 +29,11 @@
       <div id="platformSummary" class="summary"></div>
       <details>
         <summary>Inspect all 20 services and their roles</summary>
-        <p>Docker health checks and functional checks are different evidence. Functional probes are not connected in this increment.</p>
+        <p>Functional checks validate inventory reads through both API replicas, Caddy and the portal proxy. They have independent timestamps and do not certify every business workflow.</p>
         <div class="table-wrapper">
           <table class="platform-table">
             <caption>Platform service observations</caption>
-            <thead><tr><th>Service / role</th><th>Containers</th><th>Container state</th><th>Docker health</th><th>Observation</th></tr></thead>
+            <thead><tr><th>Service / role</th><th>Containers</th><th>Container state</th><th>Docker health</th><th>Observation</th><th>Functional evidence</th></tr></thead>
             <tbody id="platformRows"></tbody>
           </table>
         </div>
@@ -136,6 +136,7 @@
     <div id="message" class="message hidden"></div>
   </main>
 
+  <script src="/functional-overview.js"></script>
   <script src="/platform-overview.js"></script>
   <script src="/app.js"></script>
 </body>

@@ -16,6 +16,15 @@ const until=async predicate=>{
   });
   const w=dom.window, doc=w.document, get=id=>doc.getElementById(id);
   let mode='current',inventoryFails=false,delayA=false,posts=0,mutationResolve;
+  let functionalMode='passed';
+  const functionalServices=[
+    'governance-api-a','governance-api-b','governance-api','governance-portal'
+  ];
+  const functionalCells=()=>[...get('platformRows').children]
+    .filter(row=>functionalServices.includes(row.querySelector('strong').textContent))
+    .map(row=>row.children[5]);
+  const functionalShows=status=>functionalCells().length===4 &&
+    functionalCells().every(cell=>cell.querySelector('strong')?.textContent===status);
   const errors=[];w.addEventListener('error',e=>errors.push(e.message));
   const apps=['a','b'].map(id=>({id,name:`Application ${id.toUpperCase()}`,platform:'Appsmith',risk_score:null}));
   w.fetch=async(url,options={})=>{
@@ -27,6 +36,19 @@ const until=async predicate=>{
         reason:mode==='unavailable'?'snapshot_missing':null,
         observed_at:new Date().toISOString(),age_seconds:mode==='stale'?40:0,stale_after_seconds:30,
         services:catalog.map(([service],i)=>({service,container_count:1,container_state:'running',docker_health:i<14?'healthy':'not_configured',observation_status:mode}))};
+    } else if(url==='/api/exam/functional-status') {
+      if(functionalMode==='network')throw Error('Functional connection failed');
+      if(functionalMode==='http')return {ok:false,status:502};
+      const stamp=new Date().toISOString();
+      data={schema_version:1,source:'internal_http_probes',
+        served_at:stamp,stale_after_seconds:30,
+        checks:functionalServices.map(service=>({
+          service,check:'inventory_read',status:functionalMode,
+          observed_at:stamp,duration_ms:5,
+          http_status:functionalMode==='passed'?200:500,
+          application_count:functionalMode==='passed'?14:null,
+          reason:functionalMode==='passed'?null:'http_error'
+        }))};
     } else if(url==='/api/applications') {
       if(inventoryFails)return {ok:false,status:503}; data=apps;
     } else if(url.endsWith('/history')) {
@@ -43,11 +65,16 @@ const until=async predicate=>{
     return {ok:true,json:async()=>data};
   };
   try {
+    w.eval(fs.readFileSync(path.join(root,'functional-overview.js'),'utf8'));
     w.eval(fs.readFileSync(path.join(root,'platform-overview.js'),'utf8'));
     w.eval(fs.readFileSync(path.join(root,'app.js'),'utf8'));
     await until(()=>get('platformSummary').textContent.includes('14'));
     assert.equal(get('platformRows').children.length,20);
-    assert.equal([...get('platformRows').querySelectorAll('td')].filter(el=>el.textContent==='Not configured').length,6);
+    assert.equal([...get('platformRows').children]
+      .filter(row=>row.children[3].textContent==='Not configured').length,6);
+    assert.equal([...get('platformRows').children]
+      .filter(row=>row.children[5].textContent==='Not configured').length,16);
+    await until(()=>functionalShows('Passed'));
     console.log('PASS: 20 service rows; health distinctions; initial inventory');
     for(const state of ['stale','unavailable','http','network','current']) {
       mode=state;get('platformRefresh').click();
@@ -57,9 +84,24 @@ const until=async predicate=>{
       assert.deepEqual(counts,state==='current'?['20','14','6','0']:['—','—','—','—']);
     }
     console.log('PASS: stale, missing snapshot, HTTP/network failure and recovery');
+    for(const state of ['failed','http','network','passed']) {
+      functionalMode=state;
+      get('platformRefresh').click();
+      const expected=state==='passed'?'Passed':state==='failed'?'Failed':'Unavailable';
+      await until(()=>functionalShows(expected) && !get('platformRefresh').disabled);
+      assert.equal(get('platformObservation').className,'current');
+      for(const cell of functionalCells()) {
+        assert.equal(cell.parentElement.children[3].textContent,'healthy');
+        if(state!=='passed')assert.ok(!cell.textContent.includes('14 applications'));
+      }
+    }
+    console.log('PASS: functional failure, unavailable report and recovery remain independent of Docker health');
+
     const originalNow=w.Date.now;
     w.Date.now=()=>originalNow()+31000;
     await until(()=>get('platformObservation').className==='stale');
+    await until(()=>functionalShows('Stale'));
+    assert.ok(functionalCells().every(cell=>!cell.textContent.includes('14 applications')));
     assert.equal(get('platformSummary').querySelector('span').textContent,'—');
     w.Date.now=originalNow;
     get('platformRefresh').click();await until(()=>!get('platformRefresh').disabled);

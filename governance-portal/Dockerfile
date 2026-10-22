@@ -9,3 +9,4 @@ COPY platform-overview.js /usr/share/nginx/html/platform-overview.js
 USER 101
 
 EXPOSE 8080
+COPY functional-overview.js /usr/share/nginx/html/functional-overview.js

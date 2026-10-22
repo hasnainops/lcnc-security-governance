@@ -1,6 +1,8 @@
 /* Platform observations only: no workflow actions or Docker access from the browser. */
 (() => {
   "use strict";
+  const functionalApi = typeof module !== "undefined"
+    ? require("./functional-overview.js") : window.FunctionalOverview;
   const catalog = [
     ["governance-portal", "Exam interface"],
     ["appsmith", "Low-code applications"],
@@ -82,6 +84,60 @@
     let requestDuration = 0;
     let failure = "Waiting for status response";
     let busy = false;
+    let functionalData = null;
+    let functionalBusy = false;
+    let functionalReceived = 0;
+    let functionalMono = 0;
+    let functionalDuration = 0;
+
+    function functionalCell(service) {
+      if (!functionalApi.services.includes(service)) {
+        return "<td>Not configured</td>";
+      }
+      const elapsed = Math.max(
+        0, (Date.now() - functionalReceived) / 1000,
+        (performance.now() - functionalMono) / 1000
+      ) + functionalDuration;
+      const item = functionalApi.view(functionalData, elapsed)
+        .find(check => check.service === service);
+      const labels = {
+        passed: "Passed", failed: "Failed",
+        stale: "Stale", unavailable: "Unavailable"
+      };
+      const detail = item.status === "passed"
+        ? `${item.application_count} applications`
+        : item.reason;
+      const timing = item.observed_at
+        ? `Observed ${item.observed_at} · age ${Math.floor(item.age_seconds)}s`
+        : "No usable observation";
+      return `<td><strong>${esc(labels[item.status])}</strong>` +
+        `<small>Inventory read · ${esc(detail)}</small>` +
+        `<small>${esc(timing)}</small></td>`;
+    }
+
+    async function refreshFunctional() {
+      if (functionalBusy) return;
+      functionalBusy = true;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const started = performance.now();
+      try {
+        const response = await fetcher("/api/exam/functional-status", {
+          cache: "no-store", signal: controller.signal
+        });
+        if (!response.ok) throw new Error("Functional report unavailable");
+        functionalData = functionalApi.validate(await response.json());
+        functionalReceived = Date.now();
+        functionalMono = performance.now();
+        functionalDuration = (functionalMono - started) / 1000;
+      } catch (error) {
+        functionalData = null;
+      } finally {
+        clearTimeout(timer);
+        functionalBusy = false;
+        render();
+      }
+    }
     function render() {
       // Age locally even when polling fails or a background tab's timers are paused.
       const elapsed = Math.max(0, (Date.now() - received) / 1000, (performance.now() - receivedMono) / 1000) + requestDuration;
@@ -103,7 +159,7 @@
         `<tr class="${model.status}"><td><strong>${esc(item.name)}</strong><small>${esc(item.role)}</small></td>` +
         `<td>${esc(item.count)}</td><td>${esc(item.state)}</td>` +
         `<td class="${model.status === "current" ? esc(item.health) : model.status}">${esc(item.health === "not_configured" ? "Not configured" : item.health)}</td>` +
-        `<td>${model.status}</td></tr>`).join("");
+        `<td>${model.status}</td>` + functionalCell(item.name) + `</tr>`).join("");
     }
     async function refresh() {
       if (busy) return;
@@ -131,14 +187,17 @@
       }
     }
     get("platformRefresh").addEventListener("click", refresh);
+    get("platformRefresh").addEventListener("click", refreshFunctional);
     doc.addEventListener("visibilitychange", () => {
-      if (!doc.hidden) { render(); refresh(); }
+      if (!doc.hidden) { render(); refresh(); refreshFunctional(); }
     });
     setInterval(() => { if (!doc.hidden) refresh(); }, 10000);
+    setInterval(() => { if (!doc.hidden) refreshFunctional(); }, 10000);
     setInterval(() => { if (!doc.hidden) render(); }, 1000);
     render();
     refresh();
-    return { refresh, render };
+    refreshFunctional();
+    return { refresh, refreshFunctional, render };
   }
   if (typeof module !== "undefined") module.exports = { catalog, validate, view, mount };
   if (typeof document !== "undefined") mount(document);
