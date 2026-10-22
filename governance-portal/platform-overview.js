@@ -104,14 +104,18 @@
         passed: "Passed", failed: "Failed",
         stale: "Stale", unavailable: "Unavailable"
       };
+      const policy = item.check === "policy_decisions";
+      const checkLabel = policy ? "Policy decisions" : "Inventory read";
       const detail = item.status === "passed"
-        ? `${item.application_count} applications`
+        ? (policy
+          ? `${item.cases_passed}/${item.cases_total} cases matched`
+          : `${item.application_count} applications`)
         : item.reason;
       const timing = item.observed_at
         ? `Observed ${item.observed_at} · age ${Math.floor(item.age_seconds)}s`
         : "No usable observation";
       return `<td><strong>${esc(labels[item.status])}</strong>` +
-        `<small>Inventory read · ${esc(detail)}</small>` +
+        `<small>${esc(checkLabel)} · ${esc(detail)}</small>` +
         `<small>${esc(timing)}</small></td>`;
     }
 

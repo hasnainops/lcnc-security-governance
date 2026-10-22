@@ -18,12 +18,12 @@ const until=async predicate=>{
   let mode='current',inventoryFails=false,delayA=false,posts=0,mutationResolve;
   let functionalMode='passed';
   const functionalServices=[
-    'governance-api-a','governance-api-b','governance-api','governance-portal'
+    'governance-api-a','governance-api-b','governance-api','governance-portal','opa'
   ];
   const functionalCells=()=>[...get('platformRows').children]
     .filter(row=>functionalServices.includes(row.querySelector('strong').textContent))
     .map(row=>row.children[5]);
-  const functionalShows=status=>functionalCells().length===4 &&
+  const functionalShows=status=>functionalCells().length===5 &&
     functionalCells().every(cell=>cell.querySelector('strong')?.textContent===status);
   const errors=[];w.addEventListener('error',e=>errors.push(e.message));
   const apps=['a','b'].map(id=>({id,name:`Application ${id.toUpperCase()}`,platform:'Appsmith',risk_score:null}));
@@ -43,10 +43,14 @@ const until=async predicate=>{
       data={schema_version:1,source:'internal_http_probes',
         served_at:stamp,stale_after_seconds:30,
         checks:functionalServices.map(service=>({
-          service,check:'inventory_read',status:functionalMode,
+          service,check:service==='opa'?'policy_decisions':'inventory_read',
+          status:functionalMode,
+          ...(service==='opa'?{
+            cases_passed:functionalMode==='passed'?6:0,cases_total:6
+          }:{}),
           observed_at:stamp,duration_ms:5,
           http_status:functionalMode==='passed'?200:500,
-          application_count:functionalMode==='passed'?14:null,
+          application_count:service!=='opa'&&functionalMode==='passed'?14:null,
           reason:functionalMode==='passed'?null:'http_error'
         }))};
     } else if(url==='/api/applications') {
@@ -73,8 +77,13 @@ const until=async predicate=>{
     assert.equal([...get('platformRows').children]
       .filter(row=>row.children[3].textContent==='Not configured').length,6);
     assert.equal([...get('platformRows').children]
-      .filter(row=>row.children[5].textContent==='Not configured').length,16);
+      .filter(row=>row.children[5].textContent==='Not configured').length,15);
     await until(()=>functionalShows('Passed'));
+    const opaCell=()=>[...get('platformRows').children]
+      .find(row=>row.querySelector('strong').textContent==='opa').children[5];
+    assert.match(opaCell().textContent,/Policy decisions/);
+    assert.match(opaCell().textContent,/6\/6 cases matched/);
+    assert.ok(!opaCell().textContent.includes('applications'));
     console.log('PASS: 20 service rows; health distinctions; initial inventory');
     for(const state of ['stale','unavailable','http','network','current']) {
       mode=state;get('platformRefresh').click();
@@ -92,7 +101,10 @@ const until=async predicate=>{
       assert.equal(get('platformObservation').className,'current');
       for(const cell of functionalCells()) {
         assert.equal(cell.parentElement.children[3].textContent,'healthy');
-        if(state!=='passed')assert.ok(!cell.textContent.includes('14 applications'));
+        if(state!=='passed') {
+          assert.ok(!cell.textContent.includes('14 applications'));
+          assert.ok(!cell.textContent.includes('6/6 cases matched'));
+        }
       }
     }
     console.log('PASS: functional failure, unavailable report and recovery remain independent of Docker health');
@@ -101,6 +113,7 @@ const until=async predicate=>{
     w.Date.now=()=>originalNow()+31000;
     await until(()=>get('platformObservation').className==='stale');
     await until(()=>functionalShows('Stale'));
+    assert.ok(!opaCell().textContent.includes('6/6 cases matched'));
     assert.ok(functionalCells().every(cell=>!cell.textContent.includes('14 applications')));
     assert.equal(get('platformSummary').querySelector('span').textContent,'—');
     w.Date.now=originalNow;

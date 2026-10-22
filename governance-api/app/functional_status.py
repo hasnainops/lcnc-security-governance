@@ -8,6 +8,8 @@ from uuid import UUID
 
 import httpx
 
+from .opa_functional import probe_opa
+
 TARGETS = {
     "governance-api-a": "http://governance-api-a:8000/applications",
     "governance-api-b": "http://governance-api-b:8000/applications",
@@ -98,10 +100,11 @@ async def collect_functional_status():
         trust_env=False,
         headers={"Accept": "application/json", "Cache-Control": "no-cache"},
     ) as client:
-        checks = await asyncio.gather(*(
-            probe_inventory(client, service, url)
-            for service, url in TARGETS.items()
-        ))
+        checks = await asyncio.gather(
+            *(probe_inventory(client, service, url)
+              for service, url in TARGETS.items()),
+            probe_opa(client),
+        )
 
     return {
         "schema_version": 1,

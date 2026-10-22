@@ -4,11 +4,12 @@
 
   const services = [
     "governance-api-a", "governance-api-b",
-    "governance-api", "governance-portal"
+    "governance-api", "governance-portal", "opa"
   ];
   const reasons = new Set([
     "http_error", "response_too_large", "timeout",
-    "connection_error", "invalid_inventory", "probe_error"
+    "connection_error", "invalid_inventory", "probe_error",
+    "decision_mismatch", "invalid_decision"
   ]);
 
   function validate(data) {
@@ -26,7 +27,7 @@
     const seen = new Set();
     for (const item of data.checks) {
       if (!item || !services.includes(item.service) || seen.has(item.service) ||
-          item.check !== "inventory_read" ||
+          item.check !== (item.service === "opa" ? "policy_decisions" : "inventory_read") ||
           !["passed", "failed"].includes(item.status)) {
         throw new Error("Invalid functional check");
       }
@@ -44,13 +45,26 @@
         throw new Error("Invalid HTTP status");
       }
 
+      const policy = item.service === "opa";
+      if (policy) {
+        if (item.application_count !== null || item.cases_total !== 6 ||
+            !Number.isSafeInteger(item.cases_passed) ||
+            item.cases_passed < 0 || item.cases_passed > 6) {
+          throw new Error("Invalid policy case counts");
+        }
+      }
+
       if (item.status === "passed") {
         if (item.http_status !== 200 || item.reason !== null ||
-            !Number.isSafeInteger(item.application_count) ||
-            item.application_count < 0) {
+            (policy
+              ? item.cases_passed !== 6
+              : !Number.isSafeInteger(item.application_count) ||
+                item.application_count < 0)) {
           throw new Error("Inconsistent successful check");
         }
-      } else if (!reasons.has(item.reason) || item.application_count !== null) {
+      } else if (!reasons.has(item.reason) ||
+                 item.application_count !== null ||
+                 (policy && item.cases_passed >= 6)) {
         throw new Error("Inconsistent failed check");
       }
     }
@@ -66,6 +80,8 @@
       if (!item) {
         return {
           service, status: "unavailable", observed_at: null,
+          check: service === "opa" ? "policy_decisions" : "inventory_read",
+          cases_passed: null, cases_total: null,
           age_seconds: null, application_count: null,
           http_status: null, reason: "report_unavailable"
         };
@@ -77,6 +93,9 @@
 
       return {
         service,
+        check: item.check,
+        cases_passed: stale ? null : (item.cases_passed ?? null),
+        cases_total: stale ? null : (item.cases_total ?? null),
         status: stale ? "stale" : item.status,
         observed_at: item.observed_at,
         age_seconds: age,

@@ -9,6 +9,23 @@ import pytest
 source = Path(__file__).resolve().parents[1] / "governance-api/app/functional_status.py"
 spec = importlib.util.spec_from_file_location("functional_probe_tests", source)
 probe = importlib.util.module_from_spec(spec)
+# Provide package context for the module's relative imports.
+import sys
+import types
+
+package_name = "functional_probe_test_app"
+package = types.ModuleType(package_name)
+package.__path__ = [
+    str(Path(__file__).resolve().parents[1] / "governance-api/app")
+]
+sys.modules[package_name] = package
+spec = importlib.util.spec_from_file_location(
+    package_name + ".functional_status",
+    Path(__file__).resolve().parents[1]
+    / "governance-api/app/functional_status.py",
+)
+probe = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = probe
 spec.loader.exec_module(probe)
 
 ITEM = {
