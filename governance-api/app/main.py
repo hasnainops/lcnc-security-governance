@@ -13,9 +13,9 @@ app = FastAPI(
     version="0.2.0"
 )
 
-from .exam_status import router as exam_status_router
+from .status_routes import router as status_router
 
-app.include_router(exam_status_router)
+app.include_router(status_router)
 
 
 @app.get("/health")

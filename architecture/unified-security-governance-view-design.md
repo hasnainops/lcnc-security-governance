@@ -1,10 +1,10 @@
-# Unified exam view — implementation design
+# Unified Security & Governance View — implementation design
 
 Status: planned design for CR-001; no features in this document have been deployed by the documentation patch.
 
-Implementation update: increment 1 prepares the Docker status collector and API route. Functional probes remain explicitly `not_configured`; portal UI and workflow integrations are later increments. See the [increment 1 runbook](../docs/runbooks/unified-exam-status.md) for actual checks and deployment steps. Live Mac verification is still pending.
+Implementation update: increment 1 prepares the Docker status collector and API route. Functional probes remain explicitly `not_configured`; portal UI and workflow integrations are later increments. See the [increment 1 runbook](../docs/runbooks/unified-security-governance-status.md) for actual checks and deployment steps. Live Mac verification is still pending.
 
-Source examined: `3179166017b2573d8883b478c06677cf94866121`. Working branch: `feature/unified-exam-view`. Change control, baseline evidence, acceptance, and rollback are in [CR-001](../governance/change-management/CR-001-unified-exam-view.md).
+Source examined: `3179166017b2573d8883b478c06677cf94866121`. The implementation is now integrated into `main`. Change control, baseline evidence, acceptance, and rollback are in [CR-001](../governance/change-management/CR-001-unified-security-governance-view.md).
 
 ## 1. User experience
 
@@ -22,7 +22,7 @@ Use the existing Governance Portal at `http://localhost:3000`. Keep the selected
 
 Use compact summaries with expandable details rather than placing every technical field on screen. One selected application and one pending action should remain unambiguous. A successful control block is an expected security outcome, not a broken service.
 
-Native Appsmith, Grafana, Prometheus, SonarQube, and Vault interfaces remain optional investigation tools. The planned exam journey should use the portal without requiring those tabs. Editing Appsmith applications and administering Vault/Sonar remain native-tool operations outside that journey.
+Native Appsmith, Grafana, Prometheus, SonarQube, and Vault interfaces remain optional investigation tools. The planned governance journey should use the portal without requiring those tabs. Editing Appsmith applications and administering Vault/Sonar remain native-tool operations outside that journey.
 
 ## 2. Integration boundaries
 
@@ -42,7 +42,7 @@ Implement a standard-library Python host script, proposed as `scripts/collect-pl
 - Never copy environment variables, credentials, mounts, raw inspection output, or health-check log bodies into the snapshot.
 - Collect every 10 seconds. Use bounded subprocess timeouts; a failed Docker query is unavailable observation, not evidence that every container stopped.
 - Write a versioned JSON snapshot atomically into `.runtime-observability/platform-status.json`. Ignore the directory in Git. Mount the directory read-only at `/run/observability` in both API replicas; mounting the directory allows atomic file replacement to be observed.
-- Proposed API route: `GET /exam/platform-status`. The browser reaches it as `/api/exam/platform-status`. The API reads a fixed file path, validates its schema and size, and returns only allowed fields.
+- Proposed API route: `GET /status/platform`. The browser reaches it as `/api/status/platform`. The API reads a fixed file path, validates its schema and size, and returns only allowed fields.
 - Keep the API and portal free of Docker socket mounts. The host collector must not expose a command-execution HTTP endpoint.
 - Poll the status route every 10 seconds while the overview is visible. Mark observations older than 30 seconds stale. A future-dated, malformed, oversized, or missing snapshot is unavailable; the UI must not retain a green status from it.
 - A stale snapshot may remain visible with its old timestamp and stale label, but must not contribute to a current healthy count. Include an explicit refresh button.
@@ -111,7 +111,7 @@ The current update model does not accept the five telemetry counters reported mi
 
 ## 5. Automation adapters needed
 
-Add explicit Governance API routes under `/exam/automation/` for the allowlisted operations below. The exact adapter request models must match the underlying Automation schemas. Preserve error codes and useful safe error details; do not convert a rejected decision into HTTP 200 success.
+Add explicit Governance API routes under `/automation/` for the allowlisted operations below. The exact adapter request models must match the underlying Automation schemas. Preserve error codes and useful safe error details; do not convert a rejected decision into HTTP 200 success.
 
 | Function | Existing Automation route at `http://governance-automation:8007` |
 | --- | --- |
@@ -153,7 +153,7 @@ SonarQube `UP` means the server responds. It is not a quality-gate verdict. CI r
 - Require a clear, deliberate action for approvals, revocations, training completion, metadata updates, and external delivery. Display intended destination and synthetic demo payload before delivery.
 - Render backend strings as text rather than unsafe HTML. Keep the portal's same-origin restrictions and existing security headers.
 - Preserve policy denials, training restrictions, JIT semantics, destination validation, and dependency failure behavior. The dashboard is a client of those controls.
-- Use designated exam applications and synthetic data. Registration, assessment, training, and approval actions create real local records; a repeatable demo must account for them.
+- Use designated reference applications and synthetic data. Registration, assessment, training, and approval actions create real local records; a repeatable demo must account for them.
 - Show empty, pending, stale, failed, blocked, and unavailable states explicitly. Do not infer business success from all-green service cards.
 
 ## 8. Implementation increments
@@ -165,6 +165,6 @@ SonarQube `UP` means the server responds. It is not a quality-gate verdict. CI r
 | 3 — Analysis controls | ML/classification/scanner/risk/policy/governance and supported metadata forms | Actual persisted/returned outcomes; missing metadata; separate analyses; partial workflow failure; no duplicate automatic writes |
 | 4 — Lifecycle controls | Automation adapters, application filtering, training, approvals, JIT/access | Approval denial, training gate, role/action validation, expiry/revocation, unknown request IDs, upstream failure |
 | 5 — Transfers and evidence | Separate evaluate/execute controls, evidence integration, bounded metrics summary | Blocked destinations, DLP denial, dependency failure, successful controlled execution to an approved demo target, transient versus persisted result handling |
-| 6 — Rehearsal and release | Existing regression gates, full local exam sequence, documentation and slide updates | Baseline availability retained; exam paths and negative controls demonstrated; reviewed release and rollback reference |
+| 6 — Rehearsal and release | Existing regression gates, full local validation sequence, documentation and slide updates | Baseline availability retained; validation paths and negative controls demonstrated; reviewed release and rollback reference |
 
 The first documentation commit contains only this design and CR-001. Runtime changes begin with increment 1 after that record is in the feature branch. Stage-specific implementation commits must update the record with actual files changed, verification performed, and any deviations from this design.

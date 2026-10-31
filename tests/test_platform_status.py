@@ -16,11 +16,11 @@ from fastapi.testclient import TestClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-package = types.ModuleType("exam_observation_tests")
+package = types.ModuleType("platform_status_tests")
 package.__path__ = [str(ROOT / "governance-api/app")]
 sys.modules[package.__name__] = package
-status = importlib.import_module("exam_observation_tests.platform_status")
-route = importlib.import_module("exam_observation_tests.exam_status")
+status = importlib.import_module("platform_status_tests.platform_status")
+route = importlib.import_module("platform_status_tests.status_routes")
 spec = importlib.util.spec_from_file_location("exam_collector_tests", ROOT / "scripts/collect-platform-status.py")
 collector = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(collector)
@@ -221,7 +221,7 @@ def test_http_route_returns_no_store_and_safe_unavailable_result(tmp_path, monke
     app = FastAPI()
     app.include_router(route.router)
     with TestClient(app) as client:
-        response = client.get("/exam/platform-status")
+        response = client.get("/status/platform")
         assert response.status_code == 200
         assert response.headers["cache-control"] == "no-store"
         assert response.json()["observation_status"] == "unavailable"

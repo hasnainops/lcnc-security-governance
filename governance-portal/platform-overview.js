@@ -4,7 +4,7 @@
   const functionalApi = typeof module !== "undefined"
     ? require("./functional-overview.js") : window.FunctionalOverview;
   const catalog = [
-    ["governance-portal", "Exam interface"],
+    ["governance-portal", "Solution interface"],
     ["appsmith", "Low-code applications"],
     ["appsmith-proxy", "Appsmith browser entry"],
     ["discovery", "Appsmith inventory collection"],
@@ -126,7 +126,7 @@
       const timer = setTimeout(() => controller.abort(), 5000);
       const started = performance.now();
       try {
-        const response = await fetcher("/api/exam/functional-status", {
+        const response = await fetcher("/api/status/functional", {
           cache: "no-store", signal: controller.signal
         });
         if (!response.ok) throw new Error("Functional report unavailable");
@@ -173,7 +173,7 @@
       const timer = setTimeout(() => controller.abort(), 5000);
       const started = performance.now();
       try {
-        const response = await fetcher("/api/exam/platform-status", { cache: "no-store", signal: controller.signal });
+        const response = await fetcher("/api/status/platform", { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error(`API HTTP ${response.status}`);
         data = validate(await response.json());
         received = Date.now();

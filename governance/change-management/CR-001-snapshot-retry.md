@@ -31,4 +31,4 @@ The collector's atomic replacement strategy is unchanged.
 ## Limits
 This mitigates the reproduced short visibility gaps; it does not establish
 the filesystem root cause or guarantee recovery from longer gaps.
-Complete unified exam workflow acceptance remains pending.
+Complete unified solution workflow acceptance remains pending.

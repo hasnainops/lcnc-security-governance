@@ -1,19 +1,19 @@
 # CR-001 — Increment 2: portal overview
 
 Status: prepared and locally tested; Mac deployment and visual acceptance pending.
-This is a supplement to [CR-001](CR-001-unified-exam-view.md), not a release approval.
+This is a supplement to [CR-001](CR-001-unified-security-governance-view.md), not a release approval.
 
 ## Baseline and scope
 
-User-confirmed source baseline: `1f66fd2` on `feature/unified-exam-view`, pushed
-with the baseline tag `baseline-unified-exam-view-20261019`.
+User-confirmed source baseline: `1f66fd2` on the historical implementation branch, pushed
+with the baseline tag `baseline-unified-security-governance-view-20261019`.
 The existing main branch is not changed by applying this increment.
 
 Changes:
 
 - Existing portal gains a platform observation panel, four separate counts,
   and an expandable catalog of all 20 services with their roles.
-- Status is read from `/api/exam/platform-status` every 10 seconds while the
+- Status is read from `/api/status/platform` every 10 seconds while the
   page is visible, with an explicit refresh button and a five-second timeout.
 - Current counts disappear for stale, unavailable, malformed, or failed reads.
   Browser-side aging also prevents an old response from remaining current.
@@ -133,7 +133,7 @@ at Increment 1. Never delete database volumes as part of this rollback.
   Unapproved Integration and Expense approval, with distinct UUIDs.
 - Unassessed application evidence remains distinguishable from
   container health.
-- Functional probes and the complete unified exam workflow remain pending.
+- Functional probes and the complete unified solution workflow remain pending.
 - The intermittent snapshot_missing issue from Increment 1 remains open;
   these successful observations do not establish its resolution.
 - Narrow-window layout and oversized action-button presentation remain

@@ -45,7 +45,7 @@ jobs:
         run: |
           pytest -q tests/test_risk_engine.py tests/test_dependency_failures.py
 
-      - name: Test exam platform observations
+      - name: Test platform status observations
         run: python -m pytest -q tests/test_platform_status.py
 
       - name: Setup OPA

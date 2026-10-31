@@ -2,7 +2,7 @@
 
 ## Change
 Added bounded inventory-read probes for both Governance API replicas,
-Caddy and the portal proxy, exposed through /exam/functional-status.
+Caddy and the portal proxy, exposed through /status/functional.
 The portal displays this evidence separately from Docker health.
 Other services explicitly show functional checks as not configured.
 Reports expose status and counts without application records or raw errors.

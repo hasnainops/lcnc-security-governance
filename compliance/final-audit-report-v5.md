@@ -5,7 +5,7 @@
 **FINAL AUDIT: PASS**
 
 The MVP V5 release candidate completed objective-level and cross-project
-audit review with no remaining missing or partial exam objectives.
+audit review with no remaining missing or partial project objectives.
 
 Final objective ledger:
 

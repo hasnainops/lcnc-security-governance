@@ -181,7 +181,7 @@ Synthetic evaluation results demonstrate model behavior only and are not claimed
 
 ## 12. Secure Credential Handling
 
-**Exam Objective 14 assessment: COMPLETE for the local MVP.**
+**Project Objective 14 assessment: COMPLETE for the local MVP.**
 
 | Requirement | Implementation | Evidence | Status |
 |---|---|---|---|

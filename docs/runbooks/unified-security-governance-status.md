@@ -1,8 +1,8 @@
-# Unified exam status — increment 1
+# Unified Security & Governance Status — increment 1
 
 This increment supplies Docker observations for all 20 existing services. It adds no dashboard UI yet and does not execute business workflows. The collector runs on the Mac; both API replicas read the same sanitized snapshot. Functional endpoint checks are explicitly `not_configured` in this increment.
 
-Source checkpoint: `baseline-unified-exam-view-20261019` at `3179166`. The owner reported the baseline/design documentation commit as `b7a3006` on `feature/unified-exam-view`.
+Source checkpoint: `3179166`. The baseline/design documentation commit was `b7a3006`; the implementation is now integrated into `main`.
 
 ## 1. Verify before deployment
 
@@ -79,8 +79,8 @@ No Docker engine is available in the review workspace, so real Compose validatio
 While the collector is running:
 
 ```bash
-curl -fsS --max-time 15 http://localhost:8000/exam/platform-status | python -m json.tool
-curl -fsS --max-time 15 http://localhost:3000/api/exam/platform-status | python -m json.tool
+curl -fsS --max-time 15 http://localhost:8000/status/platform | python -m json.tool
+curl -fsS --max-time 15 http://localhost:3000/api/status/platform | python -m json.tool
 ```
 
 Check both replicas directly from the existing API network:
@@ -91,7 +91,7 @@ import json
 from urllib.request import urlopen
 
 for name in ('governance-api-a', 'governance-api-b'):
-    with urlopen(f'http://{name}:8000/exam/platform-status', timeout=10) as response:
+    with urlopen(f'http://{name}:8000/status/platform', timeout=10) as response:
         data = json.load(response)
     assert data['observation_status'] == 'current', data['reason']
     assert len(data['services']) == 20

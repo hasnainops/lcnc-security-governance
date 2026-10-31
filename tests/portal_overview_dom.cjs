@@ -29,14 +29,14 @@ const until=async predicate=>{
   const apps=['a','b'].map(id=>({id,name:`Application ${id.toUpperCase()}`,platform:'Appsmith',risk_score:null}));
   w.fetch=async(url,options={})=>{
     let data;
-    if(url==='/api/exam/platform-status') {
+    if(url==='/api/status/platform') {
       if(mode==='network')throw Error('Connection failed');
       if(mode==='http')return {ok:false,status:502};
       data={schema_version:1,source:'docker_compose',observation_status:mode,
         reason:mode==='unavailable'?'snapshot_missing':null,
         observed_at:new Date().toISOString(),age_seconds:mode==='stale'?40:0,stale_after_seconds:30,
         services:catalog.map(([service],i)=>({service,container_count:1,container_state:'running',docker_health:i<14?'healthy':'not_configured',observation_status:mode}))};
-    } else if(url==='/api/exam/functional-status') {
+    } else if(url==='/api/status/functional') {
       if(functionalMode==='network')throw Error('Functional connection failed');
       if(functionalMode==='http')return {ok:false,status:502};
       const stamp=new Date().toISOString();
