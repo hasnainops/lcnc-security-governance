@@ -1,7 +1,7 @@
 services:
 
   grafana:
-    image: grafana/grafana:13.1.3
+    image: grafana/grafana:13.3.0
     container_name: lcnc-grafana
     environment:
       GF_SECURITY_ADMIN_USER: admin
@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.13.2
+    image: prom/prometheus:v3.15.1
     container_name: lcnc-prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -128,7 +128,7 @@ services:
   # --------------------------------------------------
 
   appsmith:
-    image: appsmith/appsmith-ce:v2.2
+    image: appsmith/appsmith-ce:v2.4
     container_name: lcnc-appsmith
     expose:
       - "80"
@@ -149,7 +149,7 @@ services:
   # --------------------------------------------------
 
   appsmith-proxy:
-    image: caddy:2.11.4-alpine
+    image: caddy:2.11.6-alpine
     container_name: lcnc-appsmith-proxy
     command:
       - caddy
@@ -177,7 +177,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:18.4-alpine
+    image: postgres:18.6-alpine
     container_name: lcnc-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -228,7 +228,7 @@ services:
     restart: unless-stopped
 
   governance-api:
-    image: caddy:2.11.4-alpine
+    image: caddy:2.11.6-alpine
     container_name: lcnc-governance-api
     command:
       - caddy
