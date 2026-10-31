@@ -1,86 +1,65 @@
 version: 2
+
 updates:
-- package-ecosystem: github-actions
-  directory: /
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /discovery
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /dlp-engine
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /enterprise-discovery
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /governance-api
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /governance-automation
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /integration-gateway
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /ml-analytics
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /risk-engine
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /security-scanner
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /discovery
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /dlp-engine
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /enterprise-discovery
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /governance-api
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /governance-automation
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /governance-portal
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /integration-gateway
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /ml-analytics
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /risk-engine
-  schedule:
-    interval: weekly
-- package-ecosystem: docker
-  directory: /security-scanner
-  schedule:
-    interval: weekly
-- package-ecosystem: docker-compose
-  directory: /
-  schedule:
-    interval: weekly
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions-version-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+
+  # Python dependencies across backend services
+  - package-ecosystem: "pip"
+    directories:
+      - "/discovery"
+      - "/dlp-engine"
+      - "/enterprise-discovery"
+      - "/governance-api"
+      - "/governance-automation"
+      - "/integration-gateway"
+      - "/ml-analytics"
+      - "/risk-engine"
+      - "/security-scanner"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-version-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+
+  # Docker images across services
+  - package-ecosystem: "docker"
+    directories:
+      - "/discovery"
+      - "/dlp-engine"
+      - "/enterprise-discovery"
+      - "/governance-api"
+      - "/governance-automation"
+      - "/governance-portal"
+      - "/integration-gateway"
+      - "/ml-analytics"
+      - "/risk-engine"
+      - "/security-scanner"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker-version-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+
+  # Docker Compose platform dependencies
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      compose-version-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
