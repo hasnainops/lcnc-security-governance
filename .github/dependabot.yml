@@ -48,7 +48,7 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-      - dependency-name: "python"
+      - dependency-name: "library/python"
         update-types:
           - "version-update:semver-major"
     groups:
