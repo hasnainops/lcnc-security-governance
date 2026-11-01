@@ -47,6 +47,10 @@ updates:
       - "/security-scanner"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-major"
     groups:
       docker-version-updates:
         applies-to: "version-updates"
