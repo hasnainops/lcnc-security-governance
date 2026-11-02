@@ -149,7 +149,7 @@ services:
   # --------------------------------------------------
 
   appsmith-proxy:
-    image: caddy:2.11.6-alpine
+    image: caddy:2.11.7-alpine
     container_name: lcnc-appsmith-proxy
     command:
       - caddy
@@ -199,7 +199,7 @@ services:
     restart: unless-stopped
 
   opa:
-    image: openpolicyagent/opa:1.21.4
+    image: openpolicyagent/opa:1.22.0
     container_name: lcnc-opa
     command:
       - run
@@ -228,7 +228,7 @@ services:
     restart: unless-stopped
 
   governance-api:
-    image: caddy:2.11.6-alpine
+    image: caddy:2.11.7-alpine
     container_name: lcnc-governance-api
     command:
       - caddy
@@ -565,7 +565,7 @@ services:
     restart: unless-stopped
 
   sonarqube:
-    image: sonarqube:26.9.0.129388-community
+    image: sonarqube:26.10.0.133078-community
     container_name: lcnc-sonarqube
     ports:
       - "127.0.0.1:9000:9000"
