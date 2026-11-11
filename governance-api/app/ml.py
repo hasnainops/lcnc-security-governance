@@ -23,7 +23,44 @@ OBSERVED_FEATURES = [
 ]
 
 
-def analyze_and_persist(application_id: UUID):
+def analyze_ml_if_needed(application_id: UUID):
+    """Run existing ML scorer only when assessment is not current."""
+
+    with get_connection() as connection:
+        connection.execute(
+            "SELECT pg_advisory_xact_lock(41012, hashtext(%s));",
+            (str(application_id),),
+        )
+
+        row = connection.execute(
+            """
+            SELECT ml_anomaly_status
+            FROM applications
+            WHERE id = %s;
+            """,
+            (application_id,),
+        ).fetchone()
+
+        if row is None:
+            raise HTTPException(404, "Application not found")
+
+        if row["ml_anomaly_status"] == "assessed":
+            return {"action": "skipped"}
+
+        result = analyze_and_persist(application_id)
+
+        return {
+            "action": "assessed",
+            "assessment_id": str(result["assessment_id"]),
+        }
+
+
+def analyze_and_persist(
+    application_id: UUID,
+    *,
+    diagnostic_features=None,
+    diagnostic_provenance=None,
+):
     with get_connection() as connection:
         application = connection.execute(
             """
@@ -40,10 +77,64 @@ def analyze_and_persist(application_id: UUID):
             detail="Application not found",
         )
 
+    if diagnostic_features is None:
+        if diagnostic_provenance is not None:
+            raise HTTPException(422, "Unexpected provenance")
+
+        feature_values = {
+            name: application[name]
+            for name in OBSERVED_FEATURES
+        }
+    else:
+        valid = (
+            isinstance(diagnostic_features, dict)
+            and set(diagnostic_features) == set(OBSERVED_FEATURES)
+            and all(
+                type(diagnostic_features[name]) is int
+                and diagnostic_features[name] >= 0
+                for name in OBSERVED_FEATURES
+            )
+            and isinstance(diagnostic_provenance, dict)
+            and diagnostic_provenance.get(
+                "assessment_tier"
+            ) == "cold_start_witnessed"
+            and diagnostic_provenance.get(
+                "certified_24h"
+            ) is False
+            and type(diagnostic_provenance.get(
+                "witnessed_changes"
+            )) is int
+            and diagnostic_provenance[
+                "witnessed_changes"
+            ] >= 1
+            and diagnostic_features[
+                "changes_last_24h"
+            ] == diagnostic_provenance[
+                "witnessed_changes"
+            ]
+            and isinstance(
+                diagnostic_provenance.get(
+                    "observation_fingerprint"
+                ), str
+            )
+            and isinstance(
+                diagnostic_provenance.get(
+                    "source_observation_id"
+                ), str
+            )
+        )
+
+        if not valid:
+            raise HTTPException(
+                422, "Invalid cold-start evidence"
+            )
+
+        feature_values = diagnostic_features
+
     missing_features = [
         feature
         for feature in OBSERVED_FEATURES
-        if application[feature] is None
+        if feature_values[feature] is None
     ]
 
     if missing_features:
@@ -100,6 +191,9 @@ def analyze_and_persist(application_id: UUID):
         ),
     }
 
+    if diagnostic_features is not None:
+        payload.update(diagnostic_features)
+
     try:
         response = httpx.post(
             f"{ML_ANALYTICS_URL}/analyze",
@@ -137,6 +231,34 @@ def analyze_and_persist(application_id: UUID):
         ) from exc
 
     analysis = response.json()
+
+    context_signals = analysis["context_signals"]
+
+    if not isinstance(context_signals, list):
+        raise HTTPException(
+            502, "Invalid ML context signals"
+        )
+
+    ml_status = "assessed"
+
+    if diagnostic_features is not None:
+        ml_status = "diagnostic"
+        context_signals = [
+            *context_signals,
+            {
+                "lo1_diagnostic_provenance":
+                    diagnostic_provenance,
+                "feature_provenance": {
+                    **{
+                        name: "verified_appsmith_observation"
+                        for name in OBSERVED_FEATURES[:-1]
+                    },
+                    "changes_last_24h":
+                        "cold_start_witnessed_only",
+                },
+            },
+        ]
+
     assessment_id = uuid4()
 
     with get_connection() as connection:
@@ -165,9 +287,7 @@ def analyze_and_persist(application_id: UUID):
                 analysis["raw_decision_score"],
                 analysis["model_version"],
                 Jsonb(payload),
-                Jsonb(
-                    analysis["context_signals"]
-                ),
+                Jsonb(context_signals),
             ),
         )
 
@@ -175,7 +295,7 @@ def analyze_and_persist(application_id: UUID):
             """
             UPDATE applications
             SET
-                ml_anomaly_status = 'assessed',
+                ml_anomaly_status = %s,
                 ml_anomalous = %s,
                 ml_decision_score = %s,
                 ml_model_version = %s,
@@ -185,6 +305,7 @@ def analyze_and_persist(application_id: UUID):
             RETURNING *;
             """,
             (
+                ml_status,
                 analysis["anomalous"],
                 analysis["raw_decision_score"],
                 analysis["model_version"],
@@ -209,9 +330,7 @@ def analyze_and_persist(application_id: UUID):
             analysis["model_version"]
         ),
         "features": payload,
-        "context_signals": (
-            analysis["context_signals"]
-        ),
+        "context_signals": context_signals,
         "ml_anomaly_status": (
             updated_application[
                 "ml_anomaly_status"

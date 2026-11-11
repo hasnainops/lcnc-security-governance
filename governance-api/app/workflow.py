@@ -33,6 +33,19 @@ def determine_outcome(
             "reasons": policy["reasons"],
         }
 
+    # Cold-start ML is diagnostic, not fully certified.
+    # Preserve hard policy blocks and require human review.
+    if application.get("ml_anomaly_status") == "diagnostic":
+        return {
+            "outcome": "SECURITY_REVIEW",
+            "status": "pending_review",
+            "required_role": SECURITY_GRC_REVIEWER_ROLE,
+            "reasons": [
+                "Cold-start ML assessment has partial historical "
+                "coverage; Security/GRC review required."
+            ],
+        }
+
     if (
         application.get("ml_anomaly_status")
         == "assessed"

@@ -160,6 +160,14 @@ def assess_application_risk(application_id: UUID):
     return assess_risk_and_persist(application_id)
 
 
+from .risk_orchestration import assess_risk_if_needed
+
+
+@app.post("/applications/{application_id}/assess-if-needed")
+def assess_application_risk_if_needed(application_id: UUID):
+    return assess_risk_if_needed(application_id)
+
+
 from .models import ApplicationUpdate
 
 
@@ -499,3 +507,356 @@ def ingest_observed_workflow_security(
         application_id,
         payload,
     )
+
+
+from .discovery_observation import AppsmithObservation
+from .observation_store import persist_discovery_observation
+
+
+from .feature_assembly import assemble_features
+
+
+@app.post("/applications/{application_id}/discovery-observations")
+def ingest_discovery_observation(
+    application_id: UUID,
+    payload: AppsmithObservation,
+):
+    stored = persist_discovery_observation(
+        application_id,
+        payload,
+    )
+
+    from datetime import timedelta
+    from .database import get_connection
+    from .feature_assembly import verified_changes_from_history
+
+    cutoff = payload.observed_at - timedelta(hours=24)
+
+    with get_connection() as connection:
+        baseline = connection.execute(
+            """
+            SELECT payload
+            FROM discovery_observations
+            WHERE application_id = %s
+              AND source = %s
+              AND observed_at < %s
+            ORDER BY observed_at DESC
+            LIMIT 1;
+            """,
+            (application_id, payload.source, cutoff),
+        ).fetchone()
+
+        recent = connection.execute(
+            """
+            SELECT payload
+            FROM discovery_observations
+            WHERE application_id = %s
+              AND source = %s
+              AND observed_at >= %s
+              AND observed_at <= %s
+            ORDER BY observed_at ASC;
+            """,
+            (
+                application_id,
+                payload.source,
+                cutoff,
+                payload.observed_at,
+            ),
+        ).fetchall()
+
+    rows = ([baseline] if baseline else []) + list(recent)
+
+    observations = [
+        AppsmithObservation.model_validate(row["payload"])
+        for row in rows
+    ]
+
+    verified_changes = verified_changes_from_history(
+        observations,
+        payload.observed_at,
+    )
+
+    feature_result = assemble_features(
+        payload,
+        verified_changes_24h=verified_changes,
+    )
+
+    feature_result["feature_columns_updated"] = False
+
+    if feature_result["ready_for_ml"]:
+        values = feature_result["features"]
+
+        names = (
+            "external_integration_count",
+            "unapproved_integration_count",
+            "connector_count",
+            "external_domain_count",
+            "changes_last_24h",
+        )
+
+        if (
+            set(values) != set(names)
+            or any(
+                type(values[name]) is not int
+                or values[name] < 0
+                for name in names
+            )
+        ):
+            raise RuntimeError(
+                "Invalid verified ML feature vector"
+            )
+
+        with get_connection() as connection:
+            current = connection.execute(
+                """
+                SELECT
+                    external_integration_count,
+                    unapproved_integration_count,
+                    connector_count,
+                    external_domain_count,
+                    changes_last_24h
+                FROM applications
+                WHERE id = %s
+                FOR UPDATE;
+                """,
+                (application_id,),
+            ).fetchone()
+
+            if current is None:
+                raise HTTPException(
+                    404, "Application not found"
+                )
+
+            changed = any(
+                current[name] != values[name]
+                for name in names
+            )
+
+            if changed:
+                connection.execute(
+                    """
+                    UPDATE applications
+                    SET
+                        external_integration_count = %s,
+                        unapproved_integration_count = %s,
+                        connector_count = %s,
+                        external_domain_count = %s,
+                        changes_last_24h = %s,
+                        ml_anomaly_status = 'stale',
+                        ml_anomalous = NULL,
+                        ml_decision_score = NULL,
+                        ml_model_version = NULL,
+                        ml_assessed_at = NULL,
+                        updated_at = NOW()
+                    WHERE id = %s;
+                    """,
+                    (
+                        *(values[name] for name in names),
+                        application_id,
+                    ),
+                )
+
+            feature_result["feature_columns_updated"] = changed
+
+    feature_result["ml_execution"] = {
+        "action": "pending_evidence"
+    }
+
+    if feature_result["ready_for_ml"]:
+        from .ml import analyze_ml_if_needed
+
+        feature_result["ml_execution"] = (
+            analyze_ml_if_needed(application_id)
+        )
+
+    feature_result["cold_start_diagnostic"] = {
+        "action": "not_eligible"
+    }
+
+    if (
+        stored["created"]
+        and not feature_result["ready_for_ml"]
+    ):
+        from .feature_assembly import (
+            cold_start_witnessed_evidence,
+        )
+
+        evidence = cold_start_witnessed_evidence(
+            observations
+        )
+
+        required = (
+            "external_integration_count",
+            "unapproved_integration_count",
+            "connector_count",
+            "external_domain_count",
+        )
+
+        values = feature_result["features"]
+
+        eligible = (
+            evidence is not None
+            and all(
+                type(values[name]) is int
+                and values[name] >= 0
+                for name in required
+            )
+        )
+
+        if eligible:
+            from .ml import analyze_and_persist
+
+            diagnostic_features = {
+                name: values[name]
+                for name in required
+            }
+
+            diagnostic_features["changes_last_24h"] = (
+                evidence["witnessed_changes"]
+            )
+
+            provenance = {
+                **evidence,
+                "source_observation_id": str(
+                    stored["id"]
+                ),
+                "change_count_scope": (
+                    "witnessed_partial_history"
+                ),
+            }
+
+            with get_connection() as connection:
+                connection.execute(
+                    """
+                    SELECT pg_advisory_xact_lock(
+                        41012, hashtext(%s)
+                    );
+                    """,
+                    (str(application_id),),
+                )
+
+                latest = connection.execute(
+                    """
+                    SELECT id
+                    FROM discovery_observations
+                    WHERE application_id = %s
+                      AND source = %s
+                    ORDER BY
+                        observed_at DESC,
+                        received_at DESC
+                    LIMIT 1;
+                    """,
+                    (application_id, payload.source),
+                ).fetchone()
+
+                if (
+                    latest is None
+                    or latest["id"] != stored["id"]
+                ):
+                    feature_result[
+                        "cold_start_diagnostic"
+                    ] = {
+                        "action": "superseded"
+                    }
+                else:
+                    previous = connection.execute(
+                        """
+                        SELECT
+                            context_signals
+                        FROM ml_assessments
+                        WHERE application_id = %s
+                          AND analysis_type =
+                              'shadow-it-anomaly'
+                        ORDER BY
+                            assessed_at DESC,
+                            id DESC
+                        LIMIT 1;
+                        """,
+                        (application_id,),
+                    ).fetchone()
+
+                    status_row = connection.execute(
+                        """
+                        SELECT ml_anomaly_status
+                        FROM applications
+                        WHERE id = %s;
+                        """,
+                        (application_id,),
+                    ).fetchone()
+
+                    prior_evidence = None
+
+                    if previous is not None:
+                        signals = previous[
+                            "context_signals"
+                        ]
+
+                        if isinstance(signals, list):
+                            for item in signals:
+                                if isinstance(item, dict):
+                                    candidate = item.get(
+                                        "lo1_diagnostic_provenance"
+                                    )
+
+                                    if isinstance(
+                                        candidate, dict
+                                    ):
+                                        prior_evidence = candidate
+
+                    unchanged = (
+                        prior_evidence is not None
+                        and status_row is not None
+                        and status_row[
+                            "ml_anomaly_status"
+                        ] == "diagnostic"
+                        and prior_evidence.get(
+                            "observation_fingerprint"
+                        ) == evidence[
+                            "observation_fingerprint"
+                        ]
+                        and prior_evidence.get(
+                            "witnessed_changes"
+                        ) == evidence[
+                            "witnessed_changes"
+                        ]
+                    )
+
+                    if unchanged:
+                        feature_result[
+                            "cold_start_diagnostic"
+                        ] = {
+                            "action": "skipped_unchanged"
+                        }
+                    else:
+                        result = analyze_and_persist(
+                            application_id,
+                            diagnostic_features=(
+                                diagnostic_features
+                            ),
+                            diagnostic_provenance=(
+                                provenance
+                            ),
+                        )
+
+                        feature_result[
+                            "cold_start_diagnostic"
+                        ] = {
+                            "action": "assessed",
+                            "assessment_tier": (
+                                "cold_start_witnessed"
+                            ),
+                            "assessment_id": str(
+                                result["assessment_id"]
+                            ),
+                            "anomalous": result[
+                                "anomalous"
+                            ],
+                            "decision_score": result[
+                                "decision_score"
+                            ],
+                        }
+
+    return {
+        **stored,
+        "feature_assembly": feature_result,
+    }

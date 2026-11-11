@@ -53,7 +53,7 @@ vault write database/config/lcnc-postgres \
 
 vault write database/roles/governance-api \
   db_name=lcnc-postgres \
-  creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\''; GRANT CONNECT ON DATABASE \"$POSTGRES_DB\" TO \"{{name}}\"; GRANT USAGE ON SCHEMA public TO \"{{name}}\"; GRANT SELECT, INSERT ON TABLE public.access_decisions, public.classification_assessments, public.dynamic_compliance_assessments, public.governance_decisions, public.integration_transfer_events, public.ml_assessments, public.policy_decisions, public.risk_assessments, public.security_findings, public.security_scans TO \"{{name}}\"; GRANT SELECT, INSERT, UPDATE ON TABLE public.applications, public.training_assignments, public.training_completions TO \"{{name}}\"; GRANT INSERT ON TABLE public.training_events TO \"{{name}}\";" \
+  creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '\''{{password}}'\'' VALID UNTIL '\''{{expiration}}'\''; GRANT CONNECT ON DATABASE \"$POSTGRES_DB\" TO \"{{name}}\"; GRANT USAGE ON SCHEMA public TO \"{{name}}\"; GRANT SELECT, INSERT ON TABLE public.access_decisions, public.classification_assessments, public.discovery_observations, public.dynamic_compliance_assessments, public.governance_decisions, public.integration_transfer_events, public.ml_assessments, public.policy_decisions, public.risk_assessments, public.security_findings, public.security_scans TO \"{{name}}\"; GRANT SELECT, INSERT, UPDATE ON TABLE public.applications, public.training_assignments, public.training_completions TO \"{{name}}\"; GRANT INSERT ON TABLE public.training_events TO \"{{name}}\";" \
   default_ttl=15m \
   max_ttl=1h
 
