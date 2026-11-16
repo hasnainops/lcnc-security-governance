@@ -279,7 +279,8 @@ services:
       ML_ANALYTICS_URL: http://ml-analytics:8002
       SECURITY_SCANNER_URL: http://security-scanner:8003
       INTEGRATION_GATEWAY_URL: http://integration-gateway:8005
-      CONTROLLED_EGRESS_APPROVED_HOSTS: ${CONTROLLED_EGRESS_APPROVED_HOSTS:-example.com}
+      CONTROLLED_EGRESS_APPROVED_HOSTS: ${CONTROLLED_EGRESS_APPROVED_HOSTS-example.com}
+      DISCOVERY_INTERNAL_CIDRS: ${DISCOVERY_INTERNAL_CIDRS:-}
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro
@@ -339,7 +340,8 @@ services:
       ML_ANALYTICS_URL: http://ml-analytics:8002
       SECURITY_SCANNER_URL: http://security-scanner:8003
       INTEGRATION_GATEWAY_URL: http://integration-gateway:8005
-      CONTROLLED_EGRESS_APPROVED_HOSTS: ${CONTROLLED_EGRESS_APPROVED_HOSTS:-example.com}
+      CONTROLLED_EGRESS_APPROVED_HOSTS: ${CONTROLLED_EGRESS_APPROVED_HOSTS-example.com}
+      DISCOVERY_INTERNAL_CIDRS: ${DISCOVERY_INTERNAL_CIDRS:-}
       GOVERNANCE_AUTOMATION_URL: http://governance-automation:8007
     volumes:
       - ./compliance:/compliance:ro

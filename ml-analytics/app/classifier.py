@@ -1,4 +1,6 @@
 import os
+import hashlib
+from io import BytesIO
 from pathlib import Path
 
 import joblib
@@ -17,7 +19,9 @@ MODEL_PATH = Path(
     )
 )
 
-artifact = joblib.load(MODEL_PATH)
+model_bytes = MODEL_PATH.read_bytes()
+classification_model_sha256 = hashlib.sha256(model_bytes).hexdigest()
+artifact = joblib.load(BytesIO(model_bytes))
 
 pipeline = artifact["pipeline"]
 classification_model_version = artifact["model_version"]
@@ -62,6 +66,7 @@ def classify_application(payload):
         "confidence": round(confidence, 4),
         "review_required": (
             confidence < REVIEW_THRESHOLD
+            or prediction in {"confidential", "restricted"}
         ),
         "review_threshold": REVIEW_THRESHOLD,
         "model_version": (
@@ -70,5 +75,6 @@ def classify_application(payload):
         "class_probabilities": (
             class_probabilities
         ),
+        "model_sha256": classification_model_sha256,
         "authority": "advisory",
     }

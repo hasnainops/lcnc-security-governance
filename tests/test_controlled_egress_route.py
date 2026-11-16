@@ -44,6 +44,12 @@ def test_controlled_egress_route_returns_block_without_execution(
         fake_execute,
     )
 
+    monkeypatch.setattr(
+        governance_main,
+        "evaluate_policy_and_persist",
+        lambda *_args: {"allowed": True},
+    )
+
     client = TestClient(
         governance_main.app
     )
@@ -77,3 +83,63 @@ def test_controlled_egress_route_returns_block_without_execution(
     assert body["allowed"] is False
     assert body["executed"] is False
     assert body["upstream_status_code"] is None
+
+
+def test_governance_policy_deny_prevents_egress(monkeypatch):
+    monkeypatch.setattr(
+        governance_main,
+        "evaluate_policy_and_persist",
+        lambda *_args: {"allowed": False},
+    )
+
+    executions = []
+    monkeypatch.setattr(
+        governance_main,
+        "execute_controlled_egress",
+        lambda *_args: executions.append(True),
+    )
+
+    response = TestClient(governance_main.app).post(
+        f"/applications/{APPLICATION_ID}/controlled-egress",
+        json={
+            "destination_url": "https://example.invalid/receive",
+            "content": "synthetic",
+        },
+    )
+
+    assert response.status_code == 403
+    assert executions == []
+
+
+def test_governance_policy_failure_prevents_egress(monkeypatch):
+    from fastapi import HTTPException
+
+    def unavailable(*_args):
+        raise HTTPException(
+            status_code=503,
+            detail="OPA unavailable",
+        )
+
+    monkeypatch.setattr(
+        governance_main,
+        "evaluate_policy_and_persist",
+        unavailable,
+    )
+
+    executions = []
+    monkeypatch.setattr(
+        governance_main,
+        "execute_controlled_egress",
+        lambda *_args: executions.append(True),
+    )
+
+    response = TestClient(governance_main.app).post(
+        f"/applications/{APPLICATION_ID}/controlled-egress",
+        json={
+            "destination_url": "https://example.invalid/receive",
+            "content": "synthetic",
+        },
+    )
+
+    assert response.status_code == 503
+    assert executions == []

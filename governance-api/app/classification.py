@@ -100,6 +100,55 @@ def classify_and_persist(application_id: UUID):
     assessment_id = uuid4()
 
     with get_connection() as connection:
+        # Inference runs outside the transaction. Lock and recheck its source
+        # before accepting the result as the application's current assessment.
+        current_application = connection.execute(
+            """
+            SELECT *
+            FROM applications
+            WHERE id = %s
+            FOR UPDATE;
+            """,
+            (application_id,),
+        ).fetchone()
+
+        if current_application is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Application not found",
+            )
+
+        inputs_changed = any(
+            current_application[field] != application[field]
+            for field in (
+                "name",
+                "business_purpose",
+                "data_fields",
+                "connector_metadata",
+            )
+        )
+        superseded = (
+            current_application.get("ml_classified_at")
+            != application.get("ml_classified_at")
+        )
+
+        if inputs_changed or superseded:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "reason": (
+                        "classification_inputs_changed"
+                        if inputs_changed
+                        else "classification_request_superseded"
+                    ),
+                    "message": (
+                        "Application metadata or classification changed "
+                        "during inference. Retry with current inputs. "
+                        "This result was not persisted."
+                    ),
+                },
+            )
+
         connection.execute(
             """
             INSERT INTO classification_assessments (

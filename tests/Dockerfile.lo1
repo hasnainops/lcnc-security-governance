@@ -1,0 +1,18 @@
+FROM python:3.13-slim
+WORKDIR /workspace
+COPY governance-api/requirements.txt /tmp/api-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/api-requirements.txt pytest==9.2.0
+COPY governance-api/app /workspace/governance-api/app
+COPY discovery/*.py /workspace/discovery/
+COPY database /workspace/database
+COPY tests/lo1_classification_support.py tests/test_lo1_owner_classification_contract.py tests/test_lo1_classification_postgres.py tests/test_lo1_classification_worker.py tests/test_lo1_classification_freshness.py /workspace/tests/
+COPY tests/test_lo1_discovery_name_sync.py /workspace/tests/
+COPY tests/test_lo1_feature_persistence.py tests/test_lo1_snapshot_assessment.py /workspace/tests/
+COPY tests/test_lo1_connector_policy.py tests/test_lo1_connector_policy_postgres.py /workspace/tests/
+COPY governance-automation/app /workspace/governance-automation/app
+COPY tests/test_automatic_governance_handoff.py /workspace/tests/
+COPY tests/test_governance_automation_credentials.py /workspace/tests/
+COPY scripts/configure-governance-routing-grants.py /workspace/scripts/
+ENV PYTHONPATH=/workspace/discovery:/workspace/governance-api
+USER 10001
+CMD ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests"]

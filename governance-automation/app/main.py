@@ -472,6 +472,18 @@ def route_application(
     now = datetime.now(timezone.utc)
 
     with get_connection() as connection:
+        # The approval DB role may read, but cannot update, applications. Use
+        # the narrowly granted function to acquire the same application lock
+        # used by API writers; do not grant this service application writes.
+        connection.execute(
+            "SELECT public.lock_application_for_review(%s::uuid)", (application_id,),
+        )
+        current = connection.execute(
+            "SELECT governance_status FROM applications WHERE id=%s",
+            (application_id,),
+        ).fetchone()
+        if not current or current["governance_status"] in ("stale", "not_evaluated"):
+            raise HTTPException(409, "Current governance evaluation required before routing.")
         decision = connection.execute(
             """
             SELECT
@@ -642,6 +654,18 @@ def record_decision(
     now = datetime.now(timezone.utc)
 
     with get_connection() as connection:
+        # Use the same application-first lock order as automatic evaluation/routing.
+        target = connection.execute(
+            "SELECT application_id FROM approval_requests WHERE id=%s", (approval_id,),
+        ).fetchone()
+        if not target:
+            raise HTTPException(404, "Approval request not found.")
+        connection.execute(
+            "SELECT public.lock_application_for_review(%s::uuid)", (target["application_id"],),
+        )
+        current = connection.execute(
+            "SELECT * FROM applications WHERE id=%s", (target["application_id"],),
+        ).fetchone()
         approval = connection.execute(
             """
             SELECT *
@@ -656,6 +680,22 @@ def record_decision(
                 status_code=404,
                 detail="Approval request not found.",
             )
+
+        latest = connection.execute(
+            "SELECT id FROM governance_decisions WHERE application_id=%s "
+            "ORDER BY created_at DESC, id DESC LIMIT 1", (approval["application_id"],),
+        ).fetchone()
+        if (not current or current["governance_status"] in ("stale", "not_evaluated")
+            or not latest or latest["id"] != approval["governance_decision_id"]):
+            raise HTTPException(409, "Application evidence changed; current governance review required.")
+        if current["platform"].lower() == "appsmith":
+            observed = connection.execute(
+                "SELECT observed_at FROM discovery_observations WHERE application_id=%s "
+                "AND source='appsmith' ORDER BY observed_at DESC LIMIT 1",
+                (approval["application_id"],),
+            ).fetchone()
+            if not observed or not now-timedelta(minutes=3) <= observed["observed_at"] <= now:
+                raise HTTPException(409, "Fresh discovery evidence required for human review.")
 
         if approval["status"] in (
             "approved",

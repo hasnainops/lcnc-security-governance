@@ -11,6 +11,9 @@ RUN groupadd --gid 10001 app && useradd --uid 10001 --gid 10001 --create-home ap
 COPY --chown=10001:10001 app ./app
 COPY --chown=10001:10001 models ./models
 
+COPY training/train_snapshot.py training/synthetic_lcnc_applications.csv ./training/
+RUN python training/train_snapshot.py
+
 USER 10001:10001
 
 EXPOSE 8002

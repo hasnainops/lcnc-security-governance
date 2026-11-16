@@ -182,3 +182,39 @@ source-observation linkage.
 be reconciled during dependent LO work and final MVP acceptance.
 No requirement is considered waived or fully accepted by this
 checkpoint.
+
+## LO2 implementation checkpoint — 2026-11-11
+
+### Verified implementation
+
+- OPA governance and access-control decision consistency tests passed.
+- Controlled-egress blocking and dependency-failure tests passed.
+- Live Appsmith workflow change was discovered automatically.
+- LO1 ML Cold Start Proof widget count changed from 0 to 1.
+- Security scan history increased from 4 to 5 after that change.
+- Discovery automatically invoked compliance evaluation.
+- Repeated unchanged compliance results did not create duplicate assessments.
+- CTRL-05, CTRL-06 and CTRL-07 evidence-handling safeguards were deployed.
+- Combined regression suite: 68 passed.
+- Targeted enforcement regression suite: 24 passed.
+
+### Remaining assurance limitations
+
+- LO2.1: Mandatory Appsmith-wide configuration and operation enforcement
+  has not been demonstrated. Controlled egress protects routed requests.
+- LO2.2: Integration-dependent checks remain partial when trusted
+  integration metadata is incomplete.
+- LO2.3: Historical DLP decisions do not establish comprehensive egress
+  coverage. OPA authorization records alone do not establish enforcement.
+- Compliance assessment deduplication compares control results rather
+  than independently versioning every underlying source observation.
+- Application-level FAIL results remain genuine findings; no ownership,
+  classification or approval evidence has been fabricated.
+
+### Checkpoint decision
+
+LO2.2 has passed the observed-workflow change-to-rescan acceptance test.
+LO2.1 and LO2.3 retain documented assurance limitations.
+Do not claim complete LO2 assurance or universal Appsmith enforcement.
+Preserve these findings for dependent LO3/LO4 work and final MVP
+integration acceptance.

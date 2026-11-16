@@ -193,6 +193,7 @@ def authorize_and_persist(
     if (
         not isinstance(allowed, bool)
         or decision not in {"allow", "deny"}
+        or decision != ("allow" if allowed else "deny")
     ):
         raise HTTPException(
             status_code=502,

@@ -1,0 +1,16 @@
+header a { color: white; padding: 10px; }
+.owner-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; }
+.owner-layout label { display: block; font-weight: 600; margin: 20px 0 8px; }
+.owner-layout input:not([type="checkbox"]), .owner-layout textarea, .owner-layout select {
+  width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; font: inherit;
+}
+.owner-layout textarea { resize: vertical; }
+.owner-layout button { background: #1e40af; color: white; margin-top: 14px; }
+.owner-layout button:disabled { opacity: .6; cursor: wait; }
+.owner-layout .help { color: #475569; font-size: .9rem; line-height: 1.5; }
+.owner-layout .attestation { display: flex; gap: 10px; align-items: flex-start; font-weight: normal; line-height: 1.5; }
+.owner-layout dt { font-weight: 600; margin-top: 18px; }
+.owner-layout dd { margin: 5px 0; overflow-wrap: anywhere; }
+.owner-layout pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+#ownerMessage { line-height: 1.5; }
+@media (max-width: 800px) { .owner-layout { grid-template-columns: 1fr; } }

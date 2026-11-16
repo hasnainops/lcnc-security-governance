@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import threading
 import time
 import urllib.request
@@ -191,15 +192,7 @@ def _database_credentials(config):
     global _db_password
     global _db_valid_until
 
-    now = time.monotonic()
-
-    if (
-        _db_username
-        and _db_password
-        and now < _db_valid_until
-    ):
-        return _db_username, _db_password
-
+    # Read the pair under the same lock as refresh and invalidation.
     with _lock:
         now = time.monotonic()
 
@@ -212,6 +205,7 @@ def _database_credentials(config):
 
         token = _runtime_token(config)
 
+        requested_at = time.monotonic()
         result = _vault_request(
             "GET",
             (
@@ -243,28 +237,62 @@ def _database_credentials(config):
         _db_username = username
         _db_password = password
 
-        # Refresh before the Vault lease expires.
+        # Never impose a minimum cache lifetime beyond a short Vault lease.
+        # Start before the request so network time cannot extend the deadline.
         _db_valid_until = (
-            time.monotonic()
-            + max(30, lease_duration - 60)
+            requested_at
+            + lease_duration - min(60, lease_duration / 10)
         )
 
         return username, password
 
 
+def _credential_rejected(exc):
+    # Connection-startup failures may lack SQLSTATE in libpq/psycopg.
+    # Keep the text fallback narrow; network, TLS and pg_hba errors must not
+    # trigger credential issuance. Never log the credential or raw exception.
+    if getattr(exc, "sqlstate", None) == "28P01":
+        return True
+    message = str(exc).lower()
+    return (
+        "password authentication failed" in message
+        or re.search(r'\brole "[^"]+" does not exist\b', message) is not None
+    )
+
+
+def _invalidate_rejected_credentials(credentials):
+    global _db_username, _db_password, _db_valid_until
+
+    with _lock:
+        # Another request may already have replaced the rejected pair.
+        if (_db_username, _db_password) == credentials:
+            _db_username = None
+            _db_password = None
+            _db_valid_until = 0.0
+
+
 def get_connection():
     config = _config()
 
-    username, password = (
-        _database_credentials(config)
-    )
-
-    return psycopg.connect(
-        host=config["postgres_host"],
-        port=config["postgres_port"],
-        dbname=config["postgres_db"],
-        user=username,
-        password=password,
-        sslmode=config["postgres_sslmode"],
-        row_factory=dict_row,
-    )
+    # Retry connection establishment once, before any SQL has been executed.
+    # The normal Vault path retains the configured AppRole and DB role grants.
+    for attempt in range(2):
+        credentials = _database_credentials(config)
+        username, password = credentials
+        try:
+            return psycopg.connect(
+                host=config["postgres_host"],
+                port=config["postgres_port"],
+                dbname=config["postgres_db"],
+                user=username,
+                password=password,
+                sslmode=config["postgres_sslmode"],
+                connect_timeout=5,
+                row_factory=dict_row,
+            )
+        except psycopg.OperationalError as exc:
+            if not _credential_rejected(exc):
+                raise
+            _invalidate_rejected_credentials(credentials)
+            if attempt:
+                raise

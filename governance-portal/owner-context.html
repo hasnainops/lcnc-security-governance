@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Application owner context · LCNC Security Governance</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/owner-context.css">
+  <script src="/owner-context.js" defer></script>
+</head>
+<body>
+  <header><div><h1>Application owner context</h1><p>Explain your app’s purpose and the data it handles.</p></div>
+    <a href="/">Back to governance</a></header>
+  <main class="owner-layout">
+    <section class="panel">
+      <h2>Declare your application’s context</h2>
+      <p>Discovery supplies the observed configuration. You supply the business purpose and field descriptions. Save your declaration to start an automatic AI assessment.</p>
+      <form id="ownerForm">
+        <label for="ownerApplication">Discovered Appsmith application</label>
+        <select id="ownerApplication" required><option value="">Loading applications…</option></select>
+        <button type="button" id="reloadApplications">Refresh applications</button>
+        <label for="ownerCredential">Owner credential file</label>
+        <input id="ownerCredential" type="file" accept=".json,application/json" required>
+        <p class="help" id="credentialStatus">Use the private file issued by your project operator for this application. Its contents stay out of browser storage.</p>
+        <label for="businessPurpose">Business purpose</label>
+        <textarea id="businessPurpose" minlength="10" maxlength="2000" rows="4" required placeholder="Describe who uses this app, what it does, and why."></textarea>
+        <label for="fieldScope">Data handled by this application</label>
+        <select id="fieldScope"><option value="declared_schema">I will describe the fields</option><option value="no_data_fields">This application has no data fields</option></select>
+        <label for="fieldDefinitions">Field names and descriptions</label>
+        <textarea id="fieldDefinitions" rows="6" required placeholder="One field per line, for example:&#10;request_id: Identifier for a purchase request&#10;amount: Requested purchase amount"></textarea>
+        <p class="help">Describe the schema only. Do not enter passwords, tokens, or actual customer or employee records.</p>
+        <label class="attestation"><input id="attested" type="checkbox" required> I am the assigned owner and attest that this declaration accurately describes the application.</label>
+        <button id="saveContext" type="submit">Save and assess automatically</button>
+      </form>
+      <p id="ownerMessage" role="status" aria-live="polite"></p>
+    </section>
+    <section class="panel" aria-labelledby="classificationHeading">
+      <h2 id="classificationHeading">Current classification</h2>
+      <p id="classificationStatus" role="status" aria-live="polite">Select an application.</p>
+      <dl id="classificationDetails"></dl>
+      <p class="help">AI suggestions are advisory. The governed classification remains in force until an authorized governance action changes it. Incomplete observations remain visible as limitations.</p>
+      <details><summary>Evidence and review reasons</summary><pre id="classificationEvidence">No evidence loaded.</pre></details>
+    </section>
+  </main>
+</body>
+</html>

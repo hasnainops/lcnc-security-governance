@@ -49,6 +49,8 @@ header button {
   background: white;
 }
 
+.owner-link { color: white; margin-right: 18px; display: inline-block; padding: 10px 0; }
+
 .summary {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

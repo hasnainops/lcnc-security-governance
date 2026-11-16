@@ -1,3 +1,5 @@
+import os
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -278,13 +280,39 @@ def evaluate_dynamic_compliance(
     )
 
     # CTRL-05 — DLP / egress protection
-    if external_count == 0:
-        dlp_status = "pass"
+    if external_count is None:
+        dlp_status = "not_assessed"
         dlp_evidence = (
-            "No external integrations reported; "
-            "external DLP enforcement is not currently applicable."
+            "External integration count is unknown; "
+            "historical DLP transfer records do not establish "
+            "current integration coverage."
         )
-        dlp_remediation = None
+        dlp_remediation = (
+            "Complete verified integration discovery "
+            "before determining DLP applicability."
+        )
+
+    elif external_count == 0:
+        if (
+            unapproved_count is None
+            or application["connector_metadata"] is None
+        ):
+            dlp_status = "not_assessed"
+            dlp_evidence = (
+                "Zero external integrations reported, "
+                "but supporting integration evidence is incomplete."
+            )
+            dlp_remediation = (
+                "Verify integration enumeration and approval metadata."
+            )
+        else:
+            dlp_status = "pass"
+            dlp_evidence = (
+                "Zero external integrations reported with "
+                "integration metadata present; external DLP "
+                "is currently not applicable."
+            )
+            dlp_remediation = None
 
     elif latest_transfer is None:
         dlp_status = "not_assessed"
@@ -296,14 +324,72 @@ def evaluate_dynamic_compliance(
         )
 
     else:
-        dlp_status = "pass"
-        dlp_evidence = (
-            "Latest transfer was evaluated by "
-            f"{latest_transfer['dlp_engine_version']} "
-            f"through {latest_transfer['gateway_version']}; "
-            f"decision={latest_transfer['decision']}."
+        outcome = latest_transfer.get("enforcement_outcome")
+        enforced_at = latest_transfer.get("enforced_at")
+        evaluated_at = latest_transfer.get("evaluated_at")
+
+        blocked = (
+            outcome == "blocked_before_send"
+            and latest_transfer.get("allowed") is False
+            and latest_transfer.get("decision") == "block"
         )
-        dlp_remediation = None
+
+        forwarded = (
+            outcome == "forwarded_upstream"
+            and latest_transfer.get("allowed") is True
+            and latest_transfer.get("decision") == "allow"
+            and isinstance(
+                latest_transfer.get("upstream_status_code"), int
+            )
+            and 100 <= latest_transfer["upstream_status_code"] <= 599
+        )
+
+        valid_timestamps = (
+            isinstance(enforced_at, datetime)
+            and isinstance(evaluated_at, datetime)
+            and enforced_at.tzinfo is not None
+            and evaluated_at.tzinfo is not None
+        )
+
+        fresh = False
+
+        if valid_timestamps:
+            age = datetime.now(timezone.utc) - enforced_at
+            max_age = timedelta(
+                seconds=int(
+                    os.getenv(
+                        "DLP_RECEIPT_MAX_AGE_SECONDS",
+                        "86400",
+                    )
+                )
+            )
+            fresh = (
+                max_age.total_seconds() > 0
+                and timedelta(0) <= age <= max_age
+                and evaluated_at <= enforced_at
+            )
+
+        if fresh and (blocked or forwarded):
+            dlp_status = "pass"
+            dlp_evidence = (
+                "Recent controlled-egress enforcement verified: "
+                f"outcome={outcome}; "
+                f"enforced_at={enforced_at.isoformat()}. "
+                "Evidence applies only to the controlled-egress "
+                "operation, not universal integration coverage."
+            )
+            dlp_remediation = None
+        else:
+            dlp_status = "not_assessed"
+            dlp_evidence = (
+                "Recent controlled-egress enforcement is not "
+                "verified. Gateway evaluation records alone "
+                "do not establish enforcement."
+            )
+            dlp_remediation = (
+                "Verify a current transfer through controlled "
+                "egress and retain its enforcement receipt."
+            )
 
     controls.append(
         control(
@@ -326,14 +412,20 @@ def evaluate_dynamic_compliance(
         )
 
     else:
-        access_status = "pass"
+        # A recorded OPA decision is evaluation evidence,
+        # not proof that the requested operation was enforced.
+        access_status = "not_assessed"
         access_evidence = (
-            "OPA access-control decision recorded: "
+            "OPA authorization decision recorded, but "
+            "operation-level enforcement is not verified: "
             f"role={latest_access['role']}, "
             f"action={latest_access['requested_action']}, "
             f"decision={latest_access['decision']}."
         )
-        access_remediation = None
+        access_remediation = (
+            "Verify that the governed operation was allowed "
+            "or blocked at its execution boundary."
+        )
 
     controls.append(
         control(
@@ -354,6 +446,7 @@ def evaluate_dynamic_compliance(
     if governance_state in {
         "stale",
         "pending",
+        "pending_review",
         "not_assessed",
         "not_evaluated",
     }:
@@ -376,9 +469,49 @@ def evaluate_dynamic_compliance(
             "before approval."
         )
 
+    elif (
+        governance_state == "completed"
+        and application["governance_decided_at"] is not None
+    ):
+        decided_at = application["governance_decided_at"]
+
+        evidence_timestamps = (
+            application.get("risk_assessed_at"),
+            application.get("security_scanned_at"),
+            application.get("ml_assessed_at"),
+        )
+
+        newer_evidence = any(
+            timestamp is not None and timestamp > decided_at
+            for timestamp in evidence_timestamps
+        )
+
+        stale_evidence = any(
+            application.get(field) == "stale"
+            for field in (
+                "risk_status",
+                "security_scan_status",
+                "ml_anomaly_status",
+            )
+        )
+
+        if newer_evidence or stale_evidence:
+            governance_control_status = "not_assessed"
+            governance_remediation = (
+                "Governance-relevant assessment evidence is newer "
+                "than the decision or explicitly stale. "
+                "Re-run the governance workflow."
+            )
+        else:
+            governance_control_status = "pass"
+            governance_remediation = None
+
     else:
-        governance_control_status = "pass"
-        governance_remediation = None
+        governance_control_status = "not_assessed"
+        governance_remediation = (
+            "Verify a completed, recorded governance decision "
+            "and confirm its evidence is current."
+        )
 
     controls.append(
         control(

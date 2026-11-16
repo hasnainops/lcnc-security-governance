@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import os
 from uuid import UUID, uuid4
 
@@ -14,8 +15,8 @@ RISK_ENGINE_URL = os.getenv(
 )
 
 
-def assess_and_persist(application_id: UUID):
-    with get_connection() as connection:
+def assess_and_persist(application_id: UUID, *, connection=None):
+    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
         application = connection.execute(
             """
             SELECT *
@@ -74,7 +75,7 @@ def assess_and_persist(application_id: UUID):
     assessment = response.json()
     assessment_id = uuid4()
 
-    with get_connection() as connection:
+    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
         connection.execute(
             """
             INSERT INTO risk_assessments (

@@ -18,6 +18,7 @@ TRUST_STATES = {
     "approved_external",
     "unapproved_external",
     "internal",
+    "external_unknown_approval",
 }
 
 
@@ -142,6 +143,11 @@ def verified_changes_from_history(observations, end_at):
 
     for item in window:
         if not item.collection_complete:
+            return None
+        # A collector upgrade can reveal previously unavailable configuration.
+        # That is not proof that the application itself changed.
+        if (item.collector_version != window[-1].collector_version
+            or (item.source, item.external_id) != (window[-1].source, window[-1].external_id)):
             return None
 
         # Old observations without page IDs cannot establish
@@ -305,15 +311,16 @@ def assemble_features(
                 external = [
                     c for c in connectors
                     if destination_trust[c.connector_id]
-                    in {"approved_external", "unapproved_external"}
+                    in {"approved_external", "unapproved_external", "external_unknown_approval"}
                 ]
 
                 values["external_integration_count"] = len(external)
-                values["unapproved_integration_count"] = sum(
-                    destination_trust[c.connector_id]
-                    == "unapproved_external"
-                    for c in external
-                )
+                if all(destination_trust[c.connector_id] != "external_unknown_approval"
+                       for c in external):
+                    values["unapproved_integration_count"] = sum(
+                        destination_trust[c.connector_id] == "unapproved_external"
+                        for c in external
+                    )
                 values["external_domain_count"] = len({
                     c.destination.host for c in external
                 })

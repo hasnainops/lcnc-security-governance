@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import httpx
@@ -47,7 +48,12 @@ def analyze_ml_if_needed(application_id: UUID):
         if row["ml_anomaly_status"] == "assessed":
             return {"action": "skipped"}
 
-        result = analyze_and_persist(application_id)
+        try:
+            result = analyze_and_persist(application_id)
+        except HTTPException as exc:
+            if exc.status_code == 409 and exc.detail == "Discovery features changed or expired during inference":
+                return {"action": "pending", "reason": "fresh_unchanged_features_required"}
+            raise
 
         return {
             "action": "assessed",
@@ -241,6 +247,10 @@ def analyze_and_persist(
 
     ml_status = "assessed"
 
+    feature_evidence = application.get("discovery_feature_evidence")
+    if diagnostic_features is None and isinstance(feature_evidence, dict):
+        context_signals = [*context_signals, {"discovery_feature_evidence": feature_evidence}]
+
     if diagnostic_features is not None:
         ml_status = "diagnostic"
         context_signals = [
@@ -262,6 +272,25 @@ def analyze_and_persist(
     assessment_id = uuid4()
 
     with get_connection() as connection:
+        if diagnostic_features is None and isinstance(feature_evidence, dict):
+            # The temporal scorer must not overwrite newer connector/policy
+            # evidence while its HTTP inference was in flight.
+            current = connection.execute(
+                "SELECT * FROM applications WHERE id=%s FOR UPDATE", (application_id,)
+            ).fetchone()
+            latest_evidence = (current or {}).get("discovery_feature_evidence") or {}
+            relevant = [*OBSERVED_FEATURES, "owner_name", "owner_email",
+                        "business_purpose", "internet_exposed", "credential_type"]
+            try:
+                observed_at = datetime.fromisoformat(latest_evidence.get("observed_at", ""))
+                now = datetime.now(timezone.utc)
+                fresh = now - timedelta(minutes=3) <= observed_at <= now
+            except (ValueError, TypeError):
+                fresh = False
+            if (not current or not fresh
+                or any(current.get(key) != application.get(key) for key in relevant)
+                or latest_evidence.get("semantic_sha256") != feature_evidence.get("semantic_sha256")):
+                raise HTTPException(409, "Discovery features changed or expired during inference")
         connection.execute(
             """
             INSERT INTO ml_assessments (
@@ -297,6 +326,15 @@ def analyze_and_persist(
             SET
                 ml_anomaly_status = %s,
                 ml_anomalous = %s,
+                shadow_it_candidate = CASE
+                    WHEN LOWER(platform) = 'appsmith'
+                    THEN (
+                        %s = 'assessed'
+                        AND %s IS TRUE
+                        AND registration_status = 'unregistered'
+                    )
+                    ELSE shadow_it_candidate
+                END,
                 ml_decision_score = %s,
                 ml_model_version = %s,
                 ml_assessed_at = NOW(),
@@ -305,6 +343,8 @@ def analyze_and_persist(
             RETURNING *;
             """,
             (
+                ml_status,
+                analysis["anomalous"],
                 ml_status,
                 analysis["anomalous"],
                 analysis["raw_decision_score"],
@@ -331,6 +371,9 @@ def analyze_and_persist(
         ),
         "features": payload,
         "context_signals": context_signals,
+        "shadow_it_candidate": (
+            updated_application["shadow_it_candidate"]
+        ),
         "ml_anomaly_status": (
             updated_application[
                 "ml_anomaly_status"

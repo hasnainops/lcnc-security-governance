@@ -2,7 +2,7 @@ import importlib
 import os
 import sys
 import types
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -51,6 +51,12 @@ class FakeConnection:
         self.committed = False
 
     def execute(self, sql, values=None):
+        if "FROM applications" in sql:
+            return FakeResult({"governance_status": "pending_review", "platform": "appsmith"})
+        if "FROM governance_decisions" in sql:
+            return FakeResult({"id": self.approval["governance_decision_id"]})
+        if "FROM discovery_observations" in sql:
+            return FakeResult({"observed_at": datetime.now(timezone.utc) - timedelta(seconds=1)})
         return FakeResult(self.approval)
 
     def commit(self):
@@ -76,6 +82,7 @@ def test_training_gate_error_is_json_safe(
 
     approval = {
         "application_id": application_id,
+        "governance_decision_id": uuid4(),
         "status": "pending",
         "governance_outcome": "SECURITY_REVIEW",
     }

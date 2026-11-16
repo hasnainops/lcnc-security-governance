@@ -783,6 +783,7 @@ def _sanitize_action_observation(action: dict):
             or not host
             or parsed.username is not None
             or parsed.password is not None
+            or (port is not None and not 1 <= port <= 65535)
         ):
             return result
 
@@ -1279,14 +1280,18 @@ def build_verified_saved_connector_evidence(
     ):
         raise RuntimeError("Invalid verified datasource references")
 
-    return [
-        {
-            "connector_id": datasource_id,
-            "destination_state": "unresolved",
-            "uses_api_key": None,
-        }
-        for datasource_id in sorted(verified)
-    ]
+    by_id = {item["id"]: item for item in workspace_datasources}
+    connectors = []
+    for datasource_id in sorted(verified):
+        # Read the saved datasource itself, not the URL of an unrelated action.
+        # The existing sanitizer emits only scheme, host and port. Credentials,
+        # headers, paths, query strings and bodies never enter the observation.
+        sanitized = _sanitize_action_observation({
+            "id": datasource_id, "datasource": by_id[datasource_id],
+        })
+        sanitized["connector_id"] = sanitized.pop("action_id")
+        connectors.append(sanitized)
+    return connectors
 
 
 def group_inline_api_evidence(
@@ -1422,7 +1427,7 @@ def build_appsmith_observation(application, observed_actions):
         "contract_version": "appsmith-observation-v1",
         "source": "appsmith",
         "external_id": application["id"],
-        "collector_version": "appsmith-discovery-v1",
+        "collector_version": "appsmith-discovery-v2",
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "collection_complete": False,
         "pending_reasons": pending_reasons,
@@ -1444,7 +1449,8 @@ def send_appsmith_observation(application_id, observation):
             "/discovery-observations"
         ),
         json=observation,
-        timeout=10.0,
+        # Ingestion can include bounded DNS evaluation and two ML requests.
+        timeout=30.0,
     )
 
     response.raise_for_status()
@@ -1513,12 +1519,20 @@ def register_shadow_application(application):
     response.raise_for_status()
 
 
-def mark_seen(application_id):
+def mark_seen(application_id, source_application=None):
+    request_options = {}
+    if source_application is not None:
+        request_options["json"] = {
+            "source": "appsmith",
+            "external_id": source_application["id"],
+            "name": source_application["name"],
+        }
     response = httpx.patch(
         (
             f"{GOVERNANCE_API_URL}"
             f"/applications/{application_id}/seen"
         ),
+        **request_options,
         timeout=10.0,
     )
 
@@ -1581,59 +1595,40 @@ def trigger_anomaly_analysis(application):
 
 
 def trigger_classification(application):
+    """Let the API assemble fresh, attributed inputs and decide whether to run."""
     name = application["name"]
-
-    if application.get(
-        "ml_classification_status"
-    ) == "assessed":
-        return
-
-    missing = [
-        field
-        for field in CLASSIFICATION_REQUIRED_FIELDS
-        if not application.get(field)
-    ]
-
-    if missing:
-        print(
-            f"[CLASSIFICATION-PENDING] {name}: "
-            "content metadata incomplete: "
-            + ", ".join(missing),
-            flush=True,
-        )
-        return
-
     try:
         response = httpx.post(
-            (
-                f"{GOVERNANCE_API_URL}"
-                f"/applications/{application['id']}"
-                "/ml-classify"
-            ),
-            timeout=15.0,
+            f"{GOVERNANCE_API_URL}/applications/{application['id']}/ml-classify-if-needed",
+            timeout=20.0,
         )
-
         response.raise_for_status()
-
         result = response.json()
-
+        if not isinstance(result, dict):
+            raise ValueError("Invalid classification state response")
+        if result.get("ml_classification_status") != "assessed":
+            print(
+                f"[CLASSIFICATION-PENDING] {name}: "
+                f"action={result.get('action')} "
+                f"reasons={result.get('pending_reasons', [])}", flush=True,
+            )
+            return
         print(
-            f"[ML-CLASSIFY] {name}: "
-            f"suggested="
-            f"{result['suggested_classification']} "
+            f"[ML-CLASSIFY] {name}: action={result.get('action')} "
+            f"suggested={result['suggested_classification']} "
             f"confidence={result['confidence']} "
-            f"review_required="
-            f"{result['review_required']}",
-            flush=True,
+            f"review_required={result['review_required']}", flush=True,
         )
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+        print(f"[CLASSIFICATION-ERROR] {name}: type={type(exc).__name__}",
+              file=sys.stderr, flush=True)
 
-    except httpx.HTTPError as exc:
-        print(
-            f"[CLASSIFICATION-ERROR] "
-            f"{name}: {exc}",
-            file=sys.stderr,
-            flush=True,
-        )
+
+def reconcile_inventory_classifications():
+    """Retry existing inventory even when Appsmith collection is unavailable."""
+    for application in get_inventory().values():
+        if application.get("platform") == "appsmith":
+            trigger_classification(application)
 
 
 def trigger_security_scan(application):
@@ -1718,10 +1713,71 @@ def trigger_security_scan(application):
         )
 
 
+def trigger_compliance_assessment(application):
+    """Evaluate and persist changed compliance results."""
+
+    name = application["name"]
+
+    try:
+        response = httpx.post(
+            (
+                f"{GOVERNANCE_API_URL}"
+                f"/applications/{application['id']}"
+                "/compliance/dynamic/assess-if-needed"
+            ),
+            timeout=15.0,
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        if result.get("action") not in {
+            "created",
+            "unchanged",
+        }:
+            raise ValueError(
+                "Unexpected compliance assessment response"
+            )
+
+        print(
+            f"[COMPLIANCE-ASSESSMENT] {name}: "
+            f"action={result['action']} "
+            f"status={result['overall_status']} "
+            f"summary={result['summary']}",
+            flush=True,
+        )
+
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        print(
+            f"[COMPLIANCE-ERROR] {name}: "
+            f"type={type(exc).__name__}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
+def trigger_governance(application):
+    """Retry the idempotent governance handoff on every scheduled cycle."""
+    try:
+        response = httpx.post(
+            f"{GOVERNANCE_API_URL}/applications/{application['id']}/governance-evaluate-if-needed",
+            timeout=45.0,
+        )
+        response.raise_for_status()
+        result = response.json()
+        print(f"[GOVERNANCE] {application['id']}: action={result.get('action')} "
+              f"routing={result.get('approval_automation', {}).get('status')}", flush=True)
+    except (httpx.HTTPError, ValueError) as exc:
+        print(f"[GOVERNANCE-ERROR] {application['id']}: {type(exc).__name__}",
+              file=sys.stderr, flush=True)
+
+
 def run_ai_pipeline(application):
     trigger_anomaly_analysis(application)
     trigger_classification(application)
     trigger_security_scan(application)
+    trigger_compliance_assessment(application)
+    trigger_governance(application)
 
 
 def run_discovery_cycle():
@@ -1789,7 +1845,8 @@ def run_discovery_cycle():
                     record = mark_seen(
                         inventory[
                             external_id
-                        ]["id"]
+                        ]["id"],
+                        application,
                     )
 
                     print(
@@ -2028,6 +2085,7 @@ def main():
 
     while True:
         try:
+            reconcile_inventory_classifications()
             run_discovery_cycle()
             record_success()
 

@@ -68,6 +68,8 @@ def get_application_history(application_id: UUID):
                 class_probabilities,
                 inputs,
                 authority,
+                input_sha256,
+                source_evidence,
                 classified_at
             FROM classification_assessments
             WHERE application_id = %s

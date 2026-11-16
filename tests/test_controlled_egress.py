@@ -81,6 +81,16 @@ def test_blocked_transfer_never_executes_outbound_request(
         fake_request,
     )
 
+    receipts = []
+    monkeypatch.setattr(
+        integration,
+        "record_controlled_egress_enforcement",
+        lambda event_id, outcome, upstream_status_code=None:
+            receipts.append(
+                (str(event_id), outcome, upstream_status_code)
+            ),
+    )
+
     payload = integration.ControlledEgressRequest(
         destination_url=(
             "https://example.invalid/receive"
@@ -97,6 +107,14 @@ def test_blocked_transfer_never_executes_outbound_request(
     assert result["executed"] is False
     assert result["decision"] == "block"
     assert outbound_called is False
+
+    assert receipts == [
+        (
+            "22222222-3333-4444-5555-666666666666",
+            "blocked_before_send",
+            None,
+        )
+    ]
 
 
 def test_allowed_transfer_executes_exactly_one_outbound_request(
@@ -173,6 +191,16 @@ def test_allowed_transfer_executes_exactly_one_outbound_request(
         fake_request,
     )
 
+    receipts = []
+    monkeypatch.setattr(
+        integration,
+        "record_controlled_egress_enforcement",
+        lambda event_id, outcome, upstream_status_code=None:
+            receipts.append(
+                (str(event_id), outcome, upstream_status_code)
+            ),
+    )
+
     payload = integration.ControlledEgressRequest(
         destination_url=(
             "https://example.invalid/receive"
@@ -189,6 +217,14 @@ def test_allowed_transfer_executes_exactly_one_outbound_request(
     assert result["executed"] is True
     assert result["decision"] == "allow"
     assert result["upstream_status_code"] == 202
+
+    assert receipts == [
+        (
+            "33333333-4444-5555-6666-777777777777",
+            "forwarded_upstream",
+            202,
+        )
+    ]
 
     assert len(calls) == 1
 

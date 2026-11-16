@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import os
 from uuid import UUID, uuid4
 
@@ -16,8 +17,8 @@ OPA_URL = os.getenv(
 POLICY_VERSION = "application-v2"
 
 
-def evaluate_and_persist(application_id: UUID):
-    with get_connection() as connection:
+def evaluate_and_persist(application_id: UUID, *, connection=None, persist=True):
+    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
         application = connection.execute(
             """
             SELECT *
@@ -92,15 +93,25 @@ def evaluate_and_persist(application_id: UUID):
     allowed = result.get("allow")
     reasons = result.get("reasons", [])
 
-    if action not in {"allow", "deny"} or not isinstance(allowed, bool):
+    if (
+        not isinstance(allowed, bool)
+        or action not in {"allow", "deny"}
+        or action != ("allow" if allowed else "deny")
+    ):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="OPA returned an invalid governance decision",
         )
 
+    if not isinstance(reasons, list) or any(not isinstance(x, str) for x in reasons):
+        raise HTTPException(502, "OPA returned invalid reasons")
+    if not persist:
+        return {"action": action, "allowed": allowed, "reasons": reasons,
+                "policy_version": POLICY_VERSION}
+
     decision_id = uuid4()
 
-    with get_connection() as connection:
+    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
         decision = connection.execute(
             """
             INSERT INTO policy_decisions (

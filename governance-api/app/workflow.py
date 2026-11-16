@@ -33,6 +33,14 @@ def determine_outcome(
             "reasons": policy["reasons"],
         }
 
+    if application.get("ml_classification_review_required") is True:
+        return {
+            "outcome": "SECURITY_REVIEW", "status": "pending_review",
+            "required_role": SECURITY_GRC_REVIEWER_ROLE,
+            "reasons": ["Advisory classification requires Security/GRC review; "
+                        "the governed classification is unchanged."],
+        }
+
     # Cold-start ML is diagnostic, not fully certified.
     # Preserve hard policy blocks and require human review.
     if application.get("ml_anomaly_status") == "diagnostic":
@@ -119,11 +127,7 @@ def run_governance_workflow(application_id: UUID):
         with get_connection() as connection:
             application = connection.execute(
                 """
-                SELECT
-                    ml_anomaly_status,
-                    ml_anomalous,
-                    ml_decision_score,
-                    ml_model_version
+                SELECT *
                 FROM applications
                 WHERE id = %s;
                 """,

@@ -72,6 +72,7 @@ def test_worker_startup_and_cycle_result(tmp_path, monkeypatch, fails):
 
     monkeypatch.setattr(worker, "clear_success", clear)
     monkeypatch.setattr(worker, "record_success", record)
+    monkeypatch.setattr(worker, "reconcile_inventory_classifications", lambda: events.append("reconcile"))
     monkeypatch.setattr(worker, "run_discovery_cycle", cycle)
     monkeypatch.setattr(worker.time, "sleep", stop)
 
@@ -79,8 +80,8 @@ def test_worker_startup_and_cycle_result(tmp_path, monkeypatch, fails):
         worker.main()
 
     assert events == (
-        ["clear", "cycle", "clear"] if fails
-        else ["clear", "cycle", "record"]
+        ["clear", "reconcile", "cycle", "clear"] if fails
+        else ["clear", "reconcile", "cycle", "record"]
     )
     assert path.exists() is (not fails)
 
@@ -103,6 +104,7 @@ def test_failed_cycle_clears_previous_success(tmp_path, monkeypatch):
                         lambda: health.clear_success(path))
     monkeypatch.setattr(worker, "record_success",
                         lambda: health.record_success(path))
+    monkeypatch.setattr(worker, "reconcile_inventory_classifications", lambda: None)
     monkeypatch.setattr(worker, "run_discovery_cycle", cycle)
     monkeypatch.setattr(worker.time, "sleep", sleep)
 

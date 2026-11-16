@@ -398,9 +398,9 @@ function displayPercent(value) {
 }
 
 
-function renderEvidenceCard(label, primary, secondary = "") {
+function renderEvidenceCard(label, primary, secondary = "", id = "") {
   return `
-    <div class="evidence-card">
+    <div class="evidence-card"${id ? ` id="${escapeHtml(id)}"` : ""}>
       <strong>${escapeHtml(label)}</strong>
 
       <div class="primary">
@@ -417,7 +417,20 @@ function renderEvidenceCard(label, primary, secondary = "") {
 }
 
 
-function renderV2Summary(history, compliance, guidance) {
+function classificationCard(state) {
+  const assessed = state?.ml_classification_status === "assessed";
+  return renderEvidenceCard(
+    "AI Classification · advisory",
+    assessed ? state.suggested_classification : (state?.ml_classification_status || "Current evidence unavailable"),
+    assessed
+      ? `Confidence: ${displayPercent(state.confidence)} · Human review: ${state.review_required ? "required" : "not flagged"}`
+      : (state?.pending_reasons || []).join(", "),
+    "classificationCurrentSummary"
+  );
+}
+
+
+function renderV2Summary(history, compliance, guidance, classificationState) {
   const container =
     document.getElementById("v2Summary");
 
@@ -427,9 +440,6 @@ function renderV2Summary(history, compliance, guidance) {
 
   const anomaly =
     latest(history.ml_assessments);
-
-  const classification =
-    latest(history.classification_assessments);
 
   const scan =
     latest(history.security_scans);
@@ -460,21 +470,7 @@ function renderV2Summary(history, compliance, guidance) {
       : ""
   );
 
-  html += renderEvidenceCard(
-    "AI Classification",
-    classification
-      ? (
-          classification.suggested_classification ||
-          classification.predicted_classification ||
-          "Not assessed"
-        )
-      : "Not assessed",
-    classification
-      ? `Confidence: ${displayPercent(
-          classification.confidence
-        )}`
-      : ""
-  );
+  html += classificationCard(classificationState);
 
   html += renderEvidenceCard(
     "Security Scanner",
@@ -781,13 +777,17 @@ function renderCitizenGuidance(guidance) {
 async function loadV2Evidence(applicationId, history, generation) {
   const [
     compliance,
-    guidance
+    guidance,
+    classificationState
   ] = await Promise.all([
     fetchJsonOrNull(
       `/api/applications/${applicationId}/compliance/dynamic`
     ),
     fetchJsonOrNull(
       `/api/applications/${applicationId}/citizen-guidance`
+    ),
+    fetchJsonOrNull(
+      `/api/applications/${applicationId}/classification-state`
     )
   ]);
 
@@ -796,7 +796,8 @@ async function loadV2Evidence(applicationId, history, generation) {
   renderV2Summary(
     history,
     compliance,
-    guidance
+    guidance,
+    classificationState
   );
 
   renderDynamicCompliance(
@@ -807,3 +808,16 @@ async function loadV2Evidence(applicationId, history, generation) {
     guidance
   );
 }
+
+let classificationRefreshPending = false;
+setInterval(async () => {
+  if (document.hidden || !selectedApplicationId || classificationRefreshPending) return;
+  const applicationId = selectedApplicationId, generation = selectionGeneration;
+  classificationRefreshPending = true;
+  try {
+    const state = await fetchJsonOrNull(`/api/applications/${applicationId}/classification-state`);
+    if (generation !== selectionGeneration) return;
+    const card = document.getElementById("classificationCurrentSummary");
+    if (card) card.outerHTML = classificationCard(state);
+  } finally { classificationRefreshPending = false; }
+}, 10000);

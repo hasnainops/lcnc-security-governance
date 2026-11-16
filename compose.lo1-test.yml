@@ -1,0 +1,24 @@
+# Dedicated disposable test project. No production volumes or published ports.
+services:
+  lo1-postgres:
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_USER: lo1_test
+      POSTGRES_PASSWORD: disposable-test-only
+      POSTGRES_DB: lcnc_lo1_test_classification
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lo1_test -d lcnc_lo1_test_classification"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  lo1-tests:
+    build:
+      context: .
+      dockerfile: tests/Dockerfile.lo1
+    environment:
+      LO1_TEST_DATABASE_URL: postgresql://lo1_test:disposable-test-only@lo1-postgres/lcnc_lo1_test_classification
+    depends_on:
+      lo1-postgres:
+        condition: service_healthy

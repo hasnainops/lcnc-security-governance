@@ -325,6 +325,49 @@ def evaluate_and_persist(
         "evaluated_at": persisted["evaluated_at"],
     }
 
+def record_controlled_egress_enforcement(
+    event_id,
+    outcome,
+    upstream_status_code=None,
+):
+    """Record execution-boundary evidence for one transfer event."""
+
+    if outcome not in {
+        "blocked_before_send",
+        "forwarded_upstream",
+        "delivery_unconfirmed",
+    }:
+        raise ValueError("Invalid controlled-egress outcome")
+
+    with get_connection() as connection:
+        saved = connection.execute(
+            """
+            UPDATE integration_transfer_events
+            SET
+                enforcement_outcome = %s,
+                enforced_at = NOW(),
+                upstream_status_code = %s
+            WHERE id = %s
+              AND enforcement_outcome IS NULL
+            RETURNING id;
+            """,
+            (
+                outcome,
+                upstream_status_code,
+                event_id,
+            ),
+        ).fetchone()
+
+    if saved is None:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Controlled-egress enforcement receipt "
+                "could not be persisted."
+            ),
+        )
+
+
 def execute_controlled_egress(
     application_id: UUID,
     payload: ControlledEgressRequest,
@@ -343,6 +386,10 @@ def execute_controlled_egress(
     )
 
     if not evaluation["allowed"]:
+        record_controlled_egress_enforcement(
+            evaluation["event_id"],
+            "blocked_before_send",
+        )
         return {
             **evaluation,
             "executed": False,
@@ -362,6 +409,10 @@ def execute_controlled_egress(
         httpx.ConnectError,
         httpx.TimeoutException,
     ) as exc:
+        record_controlled_egress_enforcement(
+            evaluation["event_id"],
+            "delivery_unconfirmed",
+        )
         raise HTTPException(
             status_code=502,
             detail={
@@ -374,6 +425,10 @@ def execute_controlled_egress(
         ) from exc
 
     except httpx.HTTPError as exc:
+        record_controlled_egress_enforcement(
+            evaluation["event_id"],
+            "delivery_unconfirmed",
+        )
         raise HTTPException(
             status_code=502,
             detail={
@@ -384,6 +439,12 @@ def execute_controlled_egress(
                 ),
             },
         ) from exc
+
+    record_controlled_egress_enforcement(
+        evaluation["event_id"],
+        "forwarded_upstream",
+        response.status_code,
+    )
 
     return {
         **evaluation,

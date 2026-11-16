@@ -9,6 +9,8 @@ from .analyzer import (
 from .classifier import (
     classify_application,
     classification_model_version,
+    classification_model_sha256,
+    REVIEW_THRESHOLD,
 )
 
 
@@ -43,6 +45,8 @@ def health():
         "status": "healthy",
         "service": "ml-analytics",
         "anomaly_model_version": model_version,
+        "classification_model_sha256": classification_model_sha256,
+        "classification_review_threshold": REVIEW_THRESHOLD,
         "classification_model_version": (
             classification_model_version
         ),
@@ -73,3 +77,18 @@ def classify(payload: ClassificationInput):
         ),
         **result,
     }
+
+
+from .snapshot_analyzer import (
+    SnapshotFeatures, analyze_snapshot, MODEL_VERSION, MODEL_SHA256,
+)
+
+
+@app.get("/snapshot-model")
+def snapshot_model_identity():
+    return {"model_version": MODEL_VERSION, "model_sha256": MODEL_SHA256}
+
+
+@app.post("/analyze-snapshot")
+def analyze_configuration_snapshot(payload: SnapshotFeatures):
+    return analyze_snapshot(payload.model_dump())
