@@ -1,0 +1,73 @@
+{
+  "scope": "LO1 runtime checkpoint; not an acceptance verdict",
+  "retrieved_at": "2026-11-17T02:09:16.761202+00:00",
+  "application": {
+    "id": "20fe2957-f769-4faa-a23a-1fa28584c359",
+    "external_id": "6afabf4265d61d1e1b332ac1",
+    "first_discovered_at": "2026-11-16T08:31:30.703710+00:00",
+    "last_seen_at": "2026-11-17T02:08:37.908845+00:00",
+    "registration_status": "unregistered",
+    "shadow_it_candidate": true,
+    "risk_status": "assessed",
+    "risk_score": 60,
+    "risk_level": "high",
+    "ml_anomaly_status": "assessed"
+  },
+  "classification": {
+    "ml_classification_status": "assessed",
+    "suggested_classification": "public",
+    "confidence": 0.5394,
+    "review_required": true,
+    "model_version": "classification-v1",
+    "classified_at": "2026-11-17T02:06:34.961237+00:00",
+    "authoritative_classification": "unknown",
+    "pending_reasons": []
+  },
+  "classification_revalidation": {
+    "reused_assessment_id": null,
+    "inference_observation_id": null,
+    "revalidated_at": null,
+    "observation_id": "72efc77c-4c72-4cbc-bc7a-3197eaa06ac4",
+    "observed_at": "2026-11-17T02:06:34.831698+00:00"
+  },
+  "classification_history_count": 2,
+  "recent_assessments": [
+    {
+      "id": "3f80cb68-8f0e-4162-83dd-c9a39d4fdde0",
+      "input_sha256": "bb2a5828ec9613e55de66ace06c392afa12585f540232a202736b6a6a6e600ba",
+      "classified_at": "2026-11-17T02:06:34.961237+00:00",
+      "suggested_classification": "public",
+      "authority": "advisory",
+      "evidence": {
+        "owner_context_id": "4de9e132-38bc-440f-b4ef-032ab0d145c1",
+        "owner_declared_at": "2026-11-17T01:52:26.636050+00:00",
+        "observation_id": "72efc77c-4c72-4cbc-bc7a-3197eaa06ac4",
+        "observed_at": "2026-11-17T02:06:34.831698+00:00",
+        "collector_version": "appsmith-discovery-v2",
+        "model_sha256": "ba36f63158480a1ce1004a2322c0cbd1fe1368d2934a85a898256041dfa54a95",
+        "review_reasons": [
+          "model_confidence_below_review_threshold"
+        ]
+      }
+    },
+    {
+      "id": "3c548c76-bc51-4293-b3d0-35375cb7c19b",
+      "input_sha256": "10ce7390e585b4ae41757371d3377e1966ef7b30dde7a4c922b47713db2ec32f",
+      "classified_at": "2026-11-17T01:52:26.680313+00:00",
+      "suggested_classification": "public",
+      "authority": "advisory",
+      "evidence": {
+        "owner_context_id": "4de9e132-38bc-440f-b4ef-032ab0d145c1",
+        "owner_declared_at": "2026-11-17T01:52:26.636050+00:00",
+        "observation_id": "c758233a-540c-4243-856a-0768fd2b61c2",
+        "observed_at": "2026-11-17T01:51:32.697545+00:00",
+        "collector_version": "appsmith-discovery-v2",
+        "model_sha256": "ba36f63158480a1ce1004a2322c0cbd1fe1368d2934a85a898256041dfa54a95",
+        "review_reasons": [
+          "integration_destinations_unresolved",
+          "model_confidence_below_review_threshold"
+        ]
+      }
+    }
+  ]
+}

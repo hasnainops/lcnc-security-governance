@@ -1,0 +1,232 @@
+{
+  "scope": "Connector policy and automatic scoring checkpoint; not full LO1 acceptance",
+  "checked_at": "2026-11-17T02:09:16.877212+00:00",
+  "application_id": "20fe2957-f769-4faa-a23a-1fa28584c359",
+  "mode": "non-empty connector check",
+  "result": "PASS",
+  "problems": [],
+  "application": {
+    "name": "LO1 Connector Proof 20261116T083033Z",
+    "last_seen_at": "2026-11-17T02:08:37.908845+00:00",
+    "registration_status": "unregistered",
+    "ml_anomaly_status": "assessed",
+    "ml_model_version": "configuration-snapshot-v1",
+    "ml_anomalous": true,
+    "shadow_it_candidate": true,
+    "risk_status": "assessed",
+    "risk_score": 60,
+    "external_integration_count": 6,
+    "unapproved_integration_count": 5,
+    "connector_count": 6,
+    "external_domain_count": 6,
+    "changes_last_24h": null
+  },
+  "feature_evidence": {
+    "fresh": true,
+    "scope": "observed_configuration_and_host_policy",
+    "version": "connector-policy-v1",
+    "observed_at": "2026-11-17T02:08:37.930868+00:00",
+    "evaluated_at": "2026-11-17T02:08:37.963757+00:00",
+    "policy_sha256": "9a5f4ca1dbb3be728f1d8b916ef68d6018fd7ad5c886e908cd9c2c6d2f38bffe",
+    "internal_cidrs": [],
+    "pending_reasons": [],
+    "semantic_sha256": "e77fad0ae641502e009dc913486fc5b0cfa6b9c2afe3b7eb5565018d04907a09",
+    "missing_features": [
+      "changes_last_24h"
+    ],
+    "connector_decisions": [
+      {
+        "host": "example.org",
+        "trust": "unapproved_external",
+        "reason": null,
+        "connector_id": "6afac14f65d61d1e1b332ac7",
+        "resolved_addresses": [
+          "104.20.26.136",
+          "172.66.157.237",
+          "2606:4700:10::6814:1a88",
+          "2606:4700:10::ac42:9ded"
+        ]
+      },
+      {
+        "host": "example.net",
+        "trust": "unapproved_external",
+        "reason": null,
+        "connector_id": "6afb071665d61d1e1b332acc",
+        "resolved_addresses": [
+          "104.20.21.8",
+          "172.66.175.59",
+          "2606:4700:10::6814:1508",
+          "2606:4700:10::ac42:af3b"
+        ]
+      },
+      {
+        "host": "example.com",
+        "trust": "approved_external",
+        "reason": null,
+        "connector_id": "6afba81265d61d1e1b332ad0",
+        "resolved_addresses": [
+          "104.20.23.154",
+          "172.66.147.243",
+          "2606:4700:10::6814:179a",
+          "2606:4700:10::ac42:93f3"
+        ]
+      },
+      {
+        "host": "www.example.org",
+        "trust": "unapproved_external",
+        "reason": null,
+        "connector_id": "6afba81265d61d1e1b332ad3",
+        "resolved_addresses": [
+          "104.20.26.136",
+          "172.66.157.237",
+          "2606:4700:10::6814:1a88",
+          "2606:4700:10::ac42:9ded"
+        ]
+      },
+      {
+        "host": "www.example.net",
+        "trust": "unapproved_external",
+        "reason": null,
+        "connector_id": "6afba81265d61d1e1b332ad6",
+        "resolved_addresses": [
+          "104.20.21.8",
+          "172.66.175.59",
+          "2606:4700:10::6814:1508",
+          "2606:4700:10::ac42:af3b"
+        ]
+      },
+      {
+        "host": "www.example.com",
+        "trust": "unapproved_external",
+        "reason": null,
+        "connector_id": "6afba81265d61d1e1b332ad9",
+        "resolved_addresses": [
+          "104.20.23.154",
+          "172.66.147.243",
+          "2606:4700:10::6814:179a",
+          "2606:4700:10::ac42:93f3"
+        ]
+      }
+    ],
+    "source_observation_id": "a3417e28-2231-4dbe-a26f-6143c594bca0",
+    "internal_boundary_valid": true,
+    "observation_fingerprint": "68cf9a5b1b2e7d72f644ce82e4ca550f44b268a5728ff2982874188cc40e2f14",
+    "approval_policy_available": true,
+    "transfer_enforcement_evaluated": false
+  },
+  "matching_assessment": {
+    "id": "82e3ba19-8f93-493f-ba5b-9f1c8e476c37",
+    "analysis_type": "configuration-snapshot",
+    "anomalous": true,
+    "decision_score": -0.067406,
+    "model_version": "configuration-snapshot-v1",
+    "features": {
+      "connector_count": 6,
+      "external_domain_count": 6,
+      "external_integration_count": 6,
+      "unapproved_integration_count": 5
+    },
+    "context_signals": [
+      {
+        "snapshot_evidence": {
+          "observed_at": "2026-11-17T02:06:34.831698+00:00",
+          "input_sha256": "42af9830930f44f199e25606fc80f04d0c6ad571ee73809d490e527f74f21421",
+          "model_sha256": "aac49851fece8adec0e8a693122dffd3036a2c8235cffb2a96b40ba7513dd116",
+          "assessment_scope": "current_configuration",
+          "destination_policy": {
+            "scope": "observed_configuration_and_host_policy",
+            "version": "connector-policy-v1",
+            "observed_at": "2026-11-17T02:06:34.831698+00:00",
+            "evaluated_at": "2026-11-17T02:06:34.854787+00:00",
+            "policy_sha256": "9a5f4ca1dbb3be728f1d8b916ef68d6018fd7ad5c886e908cd9c2c6d2f38bffe",
+            "internal_cidrs": [],
+            "pending_reasons": [],
+            "semantic_sha256": "e77fad0ae641502e009dc913486fc5b0cfa6b9c2afe3b7eb5565018d04907a09",
+            "connector_decisions": [
+              {
+                "host": "example.org",
+                "trust": "unapproved_external",
+                "reason": null,
+                "connector_id": "6afac14f65d61d1e1b332ac7",
+                "resolved_addresses": [
+                  "104.20.26.136",
+                  "172.66.157.237",
+                  "2606:4700:10::6814:1a88",
+                  "2606:4700:10::ac42:9ded"
+                ]
+              },
+              {
+                "host": "example.net",
+                "trust": "unapproved_external",
+                "reason": null,
+                "connector_id": "6afb071665d61d1e1b332acc",
+                "resolved_addresses": [
+                  "104.20.21.8",
+                  "172.66.175.59",
+                  "2606:4700:10::6814:1508",
+                  "2606:4700:10::ac42:af3b"
+                ]
+              },
+              {
+                "host": "example.com",
+                "trust": "approved_external",
+                "reason": null,
+                "connector_id": "6afba81265d61d1e1b332ad0",
+                "resolved_addresses": [
+                  "104.20.23.154",
+                  "172.66.147.243",
+                  "2606:4700:10::6814:179a",
+                  "2606:4700:10::ac42:93f3"
+                ]
+              },
+              {
+                "host": "www.example.org",
+                "trust": "unapproved_external",
+                "reason": null,
+                "connector_id": "6afba81265d61d1e1b332ad3",
+                "resolved_addresses": [
+                  "104.20.26.136",
+                  "172.66.157.237",
+                  "2606:4700:10::6814:1a88",
+                  "2606:4700:10::ac42:9ded"
+                ]
+              },
+              {
+                "host": "www.example.net",
+                "trust": "unapproved_external",
+                "reason": null,
+                "connector_id": "6afba81265d61d1e1b332ad6",
+                "resolved_addresses": [
+                  "104.20.21.8",
+                  "172.66.175.59",
+                  "2606:4700:10::6814:1508",
+                  "2606:4700:10::ac42:af3b"
+                ]
+              },
+              {
+                "host": "www.example.com",
+                "trust": "unapproved_external",
+                "reason": null,
+                "connector_id": "6afba81265d61d1e1b332ad9",
+                "resolved_addresses": [
+                  "104.20.23.154",
+                  "172.66.147.243",
+                  "2606:4700:10::6814:179a",
+                  "2606:4700:10::ac42:93f3"
+                ]
+              }
+            ],
+            "source_observation_id": "72efc77c-4c72-4cbc-bc7a-3197eaa06ac4",
+            "internal_boundary_valid": true,
+            "observation_fingerprint": "68cf9a5b1b2e7d72f644ce82e4ca550f44b268a5728ff2982874188cc40e2f14",
+            "approval_policy_available": true,
+            "transfer_enforcement_evaluated": false
+          },
+          "source_observation_id": "72efc77c-4c72-4cbc-bc7a-3197eaa06ac4",
+          "temporal_history_evaluated": false
+        }
+      }
+    ],
+    "assessed_at": "2026-11-17T02:06:34.891005+00:00"
+  }
+}

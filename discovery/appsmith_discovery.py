@@ -719,19 +719,7 @@ def _count_page_widgets(page_data: dict):
     return total
 
 
-def _extract_action_url(action: dict):
-    datasource = action.get(
-        "datasource",
-        {},
-    )
-
-    if not isinstance(datasource, dict):
-        return None
-
-    config = datasource.get(
-        "datasourceConfiguration"
-    )
-
+def _configuration_destination_url(config):
     if not isinstance(config, dict):
         return None
 
@@ -746,6 +734,45 @@ def _extract_action_url(action: dict):
             return value
 
     return None
+
+
+def _extract_action_url(action: dict):
+    """Read legacy or single-storage destinations without guessing an environment.
+
+    Current Appsmith saved datasources nest configuration under datasourceStorages.
+    The observation contract does not carry an active environment selection, so
+    multiple storage entries must remain unresolved, even if their URLs agree.
+    """
+    datasource = action.get("datasource", {})
+    if not isinstance(datasource, dict):
+        return None
+
+    legacy_url = _configuration_destination_url(
+        datasource.get("datasourceConfiguration")
+    )
+    if "datasourceStorages" not in datasource:
+        return legacy_url
+
+    storages = datasource["datasourceStorages"]
+    if not isinstance(storages, dict) or len(storages) != 1:
+        return None
+
+    storage = next(iter(storages.values()))
+    datasource_id = datasource.get("id")
+    if (
+        not isinstance(storage, dict)
+        or not isinstance(datasource_id, str)
+        or not datasource_id
+        or storage.get("datasourceId") != datasource_id
+    ):
+        return None
+
+    stored_url = _configuration_destination_url(
+        storage.get("datasourceConfiguration")
+    )
+    if legacy_url is not None and legacy_url != stored_url:
+        return None
+    return stored_url
 
 
 def _sanitize_action_observation(action: dict):
@@ -820,6 +847,78 @@ def _sanitize_action_observation(action: dict):
     result["destination"] = destination
 
     return result
+
+
+def _sanitize_referenced_action_observation(action: dict, saved_by_id: dict):
+    """Resolve a static API action through its enumerated saved datasource.
+
+    Saved datasource configuration is used transiently; only the existing
+    sanitized destination shape leaves this function. Never overwrite an
+    explicit, ambiguous, or dynamic action destination with a guessed host.
+    """
+    from urllib.parse import urlsplit
+
+    observed = _sanitize_action_observation(action)
+    reference = action.get("datasource")
+    if not isinstance(reference, dict) or not reference.get("id"):
+        return observed
+    unresolved = {
+        "action_id": observed["action_id"],
+        "destination_state": "unresolved",
+        "uses_api_key": None,
+    }
+    datasource_id = reference["id"]
+    if not isinstance(datasource_id, str):
+        return unresolved
+    saved = saved_by_id.get(datasource_id)
+    if not isinstance(saved, dict) or action.get("pluginType") != "API":
+        return unresolved
+    for key in ("workspaceId", "pluginId"):
+        identities = [item[key] for item in (action, reference, saved) if key in item]
+        if identities and any(value != identities[0] for value in identities):
+            return unresolved
+
+    configuration = action.get("actionConfiguration", {})
+    if not isinstance(configuration, dict):
+        return unresolved
+    path = configuration.get("path", "")
+    if not isinstance(path, str):
+        return unresolved
+    # Paths that may supply an authority, or be computed at runtime, cannot
+    # establish the effective host from the saved base URL alone.
+    if any(marker in path for marker in ("{{", "}}", "\\")):
+        return unresolved
+    try:
+        parsed_path = urlsplit(path.strip())
+        if parsed_path.scheme or parsed_path.netloc or path.strip().startswith("//"):
+            return unresolved
+    except ValueError:
+        return unresolved
+    bindings = action.get("dynamicBindingPathList", [])
+    if not isinstance(bindings, list):
+        return unresolved
+    for binding in bindings:
+        if not isinstance(binding, dict) or not isinstance(binding.get("key"), str):
+            return unresolved
+        key = binding["key"]
+        if key.startswith("datasource") or key == "actionConfiguration.path":
+            return unresolved
+
+    saved_observation = _sanitize_action_observation({
+        "id": action["id"], "datasource": saved,
+    })
+    if saved_observation["destination_state"] != "observed":
+        return unresolved
+    if observed["destination_state"] == "observed":
+        if observed["destination"] != saved_observation["destination"]:
+            return unresolved
+        return observed
+    if any(
+        reference.get(key) not in (None, {})
+        for key in ("datasourceConfiguration", "datasourceStorages")
+    ):
+        return unresolved
+    return saved_observation
 
 
 def _record_transport_metadata(
@@ -927,6 +1026,7 @@ def _collect_page_security_metadata(
     observed_actions: list | None = None,
     action_datasource_refs: list | None = None,
     page_field_evidence: list | None = None,
+    saved_by_id: dict | None = None,
 ):
     page_data = _get_page_data(
         client,
@@ -956,7 +1056,9 @@ def _collect_page_security_metadata(
         )
         if observed_actions is not None:
             observed_actions.append(
-                _sanitize_action_observation(action)
+                _sanitize_referenced_action_observation(action, saved_by_id)
+                if saved_by_id is not None
+                else _sanitize_action_observation(action)
             )
         if action_datasource_refs is not None:
             datasource = action.get("datasource")
@@ -984,6 +1086,7 @@ def collect_workflow_security_metadata(
     observed_actions: list | None = None,
     action_datasource_refs: list | None = None,
     page_field_evidence: list | None = None,
+    workspace_datasources: list | None = None,
 ):
     """Collect sanitized Appsmith workflow security evidence.
 
@@ -1022,6 +1125,17 @@ def collect_workflow_security_metadata(
 
     metadata["page_count"] = len(pages)
 
+    # Reuse the strict identity checks before joining any action to a saved
+    # datasource. The runtime supplies this workspace's enumerated records.
+    reconcile_action_datasources(workspace_datasources, [])
+    saved_by_id = {item["id"]: item for item in (workspace_datasources or [])}
+    workspace_id = application.get("workspaceId")
+    if workspace_id is not None and any(
+        item.get("workspaceId", workspace_id) != workspace_id
+        for item in saved_by_id.values()
+    ):
+        raise RuntimeError("Datasource workspace mismatch")
+
     for page in pages:
         _collect_page_security_metadata(
             client,
@@ -1030,6 +1144,7 @@ def collect_workflow_security_metadata(
             observed_actions,
             action_datasource_refs,
             page_field_evidence,
+            saved_by_id if workspace_datasources is not None else None,
         )
 
     return metadata
@@ -1888,6 +2003,7 @@ def run_discovery_cycle():
                                 observed_actions,
                                 action_datasource_refs,
                                 page_field_evidence,
+                                workspace_datasources,
                             )
                         )
                     except (httpx.HTTPError, RuntimeError, ValueError, TypeError, KeyError) as exc:

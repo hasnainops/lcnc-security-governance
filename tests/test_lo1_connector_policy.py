@@ -1,5 +1,6 @@
 """Connector identity, sanitized collection and server-owned trust semantics."""
 import importlib
+from copy import deepcopy
 import json
 import subprocess
 from uuid import uuid4
@@ -7,6 +8,105 @@ from uuid import uuid4
 import pytest
 
 from lo1_classification_support import modules, observation
+
+
+def stored_datasource(url='https://example.com/private?token=secret#fragment'):
+    """Synthetic values in the datasource shape observed in live Appsmith."""
+    return {
+        'id': 'saved-one',
+        'datasourceStorages': {'unused_env': {
+            'id': 'storage-one', 'datasourceId': 'saved-one',
+            'environmentId': 'unused_env',
+            'datasourceConfiguration': {
+                'url': url,
+                'headers': [{'key': 'Authorization', 'value': 'secret'}],
+                'authentication': {'password': 'secret'},
+            },
+            'isConfigured': True, 'isValid': True, 'invalids': [],
+        }},
+    }
+
+
+def stored_connector(datasource):
+    import appsmith_discovery as discovery
+    sources = [datasource]
+    references = [{'action_id': 'query-one', 'datasource_id': datasource['id']}]
+    reconciliation = discovery.reconcile_action_datasources(sources, references)
+    return discovery.build_verified_saved_connector_evidence(sources, reconciliation)[0]
+
+
+def test_storage_layout_extracts_sanitized_saved_destination():
+    datasource = stored_datasource()
+    before = deepcopy(datasource)
+    connector = stored_connector(datasource)
+    assert connector == {
+        'connector_id': 'saved-one', 'destination_state': 'observed',
+        'uses_api_key': None,
+        'destination': {'scheme': 'https', 'host': 'example.com'},
+    }
+    assert datasource == before
+    assert 'secret' not in json.dumps(connector)
+    assert 'private' not in json.dumps(connector)
+
+
+@pytest.mark.parametrize('mutation', [
+    'multiple_environments', 'empty_storages', 'list_storages', 'null_storages',
+    'malformed_storage', 'wrong_datasource', 'missing_datasource',
+    'missing_configuration', 'malformed_configuration', 'conflicting_legacy_url',
+])
+def test_storage_layout_ambiguous_or_invalid_destination_stays_unknown(mutation):
+    datasource = stored_datasource()
+    storage = datasource['datasourceStorages']['unused_env']
+    if mutation == 'multiple_environments':
+        datasource['datasourceStorages']['another_env'] = deepcopy(storage)
+    elif mutation == 'empty_storages':
+        datasource['datasourceStorages'] = {}
+    elif mutation == 'list_storages':
+        datasource['datasourceStorages'] = [storage]
+    elif mutation == 'null_storages':
+        datasource['datasourceStorages'] = None
+    elif mutation == 'malformed_storage':
+        datasource['datasourceStorages']['unused_env'] = 'not-an-object'
+    elif mutation == 'wrong_datasource':
+        storage['datasourceId'] = 'another-datasource'
+    elif mutation == 'missing_datasource':
+        storage.pop('datasourceId')
+    elif mutation == 'missing_configuration':
+        storage.pop('datasourceConfiguration')
+    elif mutation == 'malformed_configuration':
+        storage['datasourceConfiguration'] = []
+    elif mutation == 'conflicting_legacy_url':
+        datasource['datasourceConfiguration'] = {'url': 'https://different.example.com'}
+    connector = stored_connector(datasource)
+    assert connector['destination_state'] == 'unresolved'
+    assert 'destination' not in connector
+
+
+@pytest.mark.parametrize('url', [None, '', '{{dynamicUrl}}', 'https://{{host}}/',
+                                'https://user:secret@example.com', 'https://example.com:0',
+                                'postgres://database:5432'])
+def test_storage_layout_unsafe_or_missing_url_stays_unknown(url):
+    assert stored_connector(stored_datasource(url))['destination_state'] == 'unresolved'
+
+
+def test_storage_layout_matching_legacy_url_is_supported():
+    datasource = stored_datasource('https://example.com')
+    datasource['datasourceConfiguration'] = {'url': 'https://example.com'}
+    assert stored_connector(datasource)['destination']['host'] == 'example.com'
+
+
+def test_storage_layout_supplies_current_features_without_temporal_history(policy, monkeypatch):
+    monkeypatch.setattr(policy, 'resolve_hosts', lambda hosts: {h: ['8.8.8.8'] for h in hosts})
+    contract = importlib.import_module(policy.__package__ + '.discovery_observation')
+    payload = observation()
+    payload['connectors'] = [stored_connector(stored_datasource())]
+    result = policy.assemble_governed_features(contract.AppsmithObservation.model_validate(payload), uuid4())
+    assert result['features'] == {
+        'connector_count': 1, 'external_integration_count': 1,
+        'unapproved_integration_count': 1, 'external_domain_count': 1,
+        'changes_last_24h': None,
+    }
+    assert result['evidence']['pending_reasons'] == []
 
 
 @pytest.fixture

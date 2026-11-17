@@ -1,0 +1,13 @@
+{
+  "scope": "Before-creation inventory summary; unrelated applications omitted",
+  "retrieved_at": "2026-11-16T08:30:33.874297+00:00",
+  "application_count": 18,
+  "target_application_id": "20fe2957-f769-4faa-a23a-1fa28584c359",
+  "target_external_id": "6afabf4265d61d1e1b332ac1",
+  "target_name": "LO1 Connector Proof 20261116T083033Z",
+  "target_present": false,
+  "first_discovered_at": "2026-11-16T08:31:30.703710+00:00",
+  "baseline_to_first_discovery_seconds": 56.829413,
+  "timing_limitation": "Interval starts at baseline capture, not exact app creation.",
+  "source_sha256": "06970833e21446786e2a0ca4b90b7a6f10a2018d947039ba906f057460ecfcdf"
+}

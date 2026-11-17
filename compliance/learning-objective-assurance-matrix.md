@@ -167,3 +167,19 @@ review status until separately assessed.
 
 These gaps are deferred, not waived. This is an implementation
 checkpoint, not full LO1 sign-off.
+
+
+## LO1 Appsmith MVP acceptance — 2026-11-17 UTC
+
+This dated verdict supersedes earlier LO1 checkpoint status within the Appsmith
+reference-platform MVP. Other learning-objective verdicts remain unchanged.
+
+| Requirement | Verdict | Evidence |
+|---|---|---|
+| LO1.1: ML shadow IT discovery | FULL within stated MVP scope | Live collected configuration, persisted anomaly assessment and unregistered shadow candidate |
+| LO1.2: Automated inventory, classification and risk | FULL within stated MVP scope | Automatic intake, attested owner context, automatic advisory classification/reassessment and risk scoring |
+| LO1.3: Continuous monitoring | FULL within stated MVP scope | Before-creation absence, scheduled first discovery and subsequent observations/configuration updates |
+
+See [LO1 acceptance and limitations](evidence/CR-002-LO1-Appsmith-acceptance.md).
+Production accuracy, publication-event telemetry and cross-platform coverage
+are not asserted. Low-confidence human review remains required.
