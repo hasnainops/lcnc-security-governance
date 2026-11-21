@@ -124,6 +124,105 @@ def metrics():
     )
 
 
+def _validate_dlp_result(document):
+    """Reject incomplete or inconsistent DLP inspection evidence."""
+
+    if not isinstance(document, dict):
+        raise ValueError("DLP response must be an object")
+
+    engine_version = document.get("engine_version")
+    sensitive = document.get("sensitive_data_detected")
+    finding_count = document.get("finding_count")
+    highest = document.get("highest_sensitivity")
+    detected_types = document.get("detected_types")
+    findings = document.get("findings")
+
+    if (
+        not isinstance(engine_version, str)
+        or not engine_version.strip()
+    ):
+        raise ValueError("Invalid DLP engine version")
+
+    if type(sensitive) is not bool:
+        raise ValueError("Invalid DLP detection flag")
+
+    if (
+        type(finding_count) is not int
+        or finding_count < 0
+    ):
+        raise ValueError("Invalid DLP finding count")
+
+    if not isinstance(detected_types, list):
+        raise ValueError("Invalid DLP detected types")
+
+    if not all(
+        isinstance(item, str) and item.strip()
+        for item in detected_types
+    ):
+        raise ValueError("Invalid DLP detected type")
+
+    if len(set(detected_types)) != len(detected_types):
+        raise ValueError("Duplicate DLP detected types")
+
+    if not isinstance(findings, list):
+        raise ValueError("Missing DLP findings")
+
+    if len(findings) != finding_count:
+        raise ValueError("DLP finding count mismatch")
+
+    sensitivity_rank = {
+        "confidential": 2,
+        "restricted": 3,
+    }
+
+    actual_types = set()
+    actual_highest = None
+
+    for item in findings:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid DLP finding")
+
+        for field in ("rule_id", "data_type", "evidence"):
+            value = item.get(field)
+
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+            ):
+                raise ValueError("Invalid DLP finding field")
+
+        if (
+            type(item.get("count")) is not int
+            or item["count"] < 1
+        ):
+            raise ValueError("Invalid DLP occurrence count")
+
+        sensitivity = item.get("sensitivity")
+
+        if sensitivity not in sensitivity_rank:
+            raise ValueError("Invalid DLP finding sensitivity")
+
+        actual_types.add(item["data_type"])
+
+        if (
+            actual_highest is None
+            or sensitivity_rank[sensitivity]
+            > sensitivity_rank[actual_highest]
+        ):
+            actual_highest = sensitivity
+
+    if sensitive != bool(findings):
+        raise ValueError("Inconsistent DLP detection flag")
+
+    if set(detected_types) != actual_types:
+        raise ValueError("Inconsistent DLP detected types")
+
+    if highest != actual_highest:
+        raise ValueError("Inconsistent DLP highest sensitivity")
+
+    return document
+
+
 @app.post("/evaluate-transfer")
 def evaluate(payload: TransferRequest):
     TRANSFER_REQUESTS.inc()
@@ -189,7 +288,22 @@ def evaluate(payload: TransferRequest):
             },
         ) from exc
 
-    dlp_result = response.json()
+    try:
+        dlp_result = _validate_dlp_result(
+            response.json()
+        )
+    except (TypeError, ValueError) as exc:
+        DLP_FAILURES.labels(
+            reason="invalid_response"
+        ).inc()
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "decision": "block",
+                "reason": "dlp_invalid_response",
+            },
+        ) from exc
 
     policy = evaluate_transfer(
         destination_url=payload.destination_url,
