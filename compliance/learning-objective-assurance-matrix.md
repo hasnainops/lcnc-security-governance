@@ -58,7 +58,7 @@ This does not invalidate earlier audit results.
 
 | ID | Official requirement | Current documented implementation | Existing matrix sections | Verification needed |
 |---|---|---|---|---|
-| LO2.1 | Deploy policy-as-code enforcement for low-code/no-code platform configurations. | PARTIAL: OPA governance and authorization policies, persisted decisions, contradictory-response rejection, and controlled-egress blocking have been verified. | 6 | Mandatory interception of Appsmith deployment/configuration operations is not demonstrated. Controlled-egress enforcement applies only to requests routed through that endpoint. |
+| LO2.1 | Deploy policy-as-code enforcement for low-code/no-code platform configurations. | PARTIAL: OPA governance and authorization policies, persisted decisions, contradictory-response rejection, controlled-egress blocking, and a scoped Appsmith manual publish denial have been verified. | 6 | Appsmith-wide interception of deployment/configuration operations is not demonstrated. Controlled-egress enforcement applies only to requests routed through that endpoint. |
 | LO2.2 | Implement automated security scanning for citizen-developed applications and workflows. | VERIFIED for observed Appsmith workflow changes: Discovery invokes the scanner, stores findings and rescans after changed workflow metadata. Live widget change increased scan history from 4 to 5. | 4, 15 | Integration-dependent scanning remains partial where connector evidence is incomplete; broader changes outside observed metadata require separate coverage verification. |
 | LO2.3 | Configure compliance validation for data protection, access control, and integration security. | PARTIAL: seven controls, automatic Discovery invocation, PostgreSQL persistence, result-based idempotency and corrected CTRL-05/06/07 evidence handling verified. | 10, 15, 19 | Historical DLP events do not prove universal enforcement; CTRL-06 lacks verified operation-level enforcement evidence. Result-based idempotency does not independently track source evidence versions. |
 
@@ -183,3 +183,16 @@ reference-platform MVP. Other learning-objective verdicts remain unchanged.
 See [LO1 acceptance and limitations](evidence/CR-002-LO1-Appsmith-acceptance.md).
 Production accuracy, publication-event telemetry and cross-platform coverage
 are not asserted. Low-confidence human review remains required.
+
+## LO2 Appsmith manual publish denial checkpoint — 2026-11-18 UTC
+
+LO2.1 remains PARTIAL. An authenticated POST to the canonical Appsmith
+manual-publish endpoint through the installed proxy received formatted HTTP 403;
+the decision ID matched a persisted deny receipt. The operator also observed
+the native Deploy denial message in the browser. See
+[scoped publish-denial evidence and remaining coverage](evidence/CR-002-LO2-Appsmith-publish-denial-checkpoint.md).
+
+The browser screenshot cannot be paired to the API receipt, Appsmith omitted
+the deployment timestamp from the tested inventory response, and other
+configuration and publish paths have not been accepted. LO2.2 and LO2.3
+retain the preceding verdicts and limitations.

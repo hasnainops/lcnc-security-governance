@@ -1,0 +1,31 @@
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	route {
+		# Check all requests so a differently encoded path cannot evade a
+		# narrow Caddy matcher. Non-publish requests require no DB/OPA access.
+		forward_auth governance-api:8000 {
+			uri /internal/appsmith/publish-preflight
+			header_up X-LCNC-Original-Method {method}
+			header_up X-LCNC-Original-Uri {uri}
+			header_up X-LCNC-Appsmith-Branch {http.request.header.branchName}
+			header_up -Authorization
+			header_up -Cookie
+			transport http {
+				dial_timeout 2s
+				response_header_timeout 20s
+			}
+		}
+		reverse_proxy appsmith:80 {
+			# Client-supplied routing or method overrides are not trusted.
+			header_up -X-HTTP-Method-Override
+			header_up -X-Method-Override
+			header_up -X-LCNC-Original-Method
+			header_up -X-LCNC-Original-Uri
+			header_up -X-LCNC-Appsmith-Branch
+		}
+	}
+}

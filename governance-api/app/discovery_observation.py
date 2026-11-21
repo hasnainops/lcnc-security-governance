@@ -198,6 +198,10 @@ class AppsmithObservation(ObservationModel):
     external_id: Identifier
     collector_version: Identifier
     observed_at: AwareDatetime
+    manifest_version: Literal["appsmith-release-manifest-v1"] | None = None
+    release_sha256: str | None = Field(
+        default=None, min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$"
+    )
 
     # Complete enumeration does not imply resolvable destinations.
     collection_complete: StrictBool
@@ -214,6 +218,8 @@ class AppsmithObservation(ObservationModel):
 
     @model_validator(mode="after")
     def check_collection(self):
+        if (self.manifest_version is None) != (self.release_sha256 is None):
+            raise ValueError("Manifest version and release SHA-256 must be supplied together")
         if self.collection_complete == bool(self.pending_reasons):
             raise ValueError(
                 "Incomplete collection requires reasons; "

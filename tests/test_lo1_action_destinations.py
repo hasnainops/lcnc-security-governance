@@ -157,3 +157,15 @@ def test_unresolved_query_still_requires_review(monkeypatch):
     row["payload"]["observed_actions"], _ = collect(monkeypatch, [query], [stored_datasource()])
     result = inputs.build_classification_inputs(app, context, row, now)
     assert "integration_destinations_unresolved" in result.review_reasons
+
+
+def test_inline_api_with_empty_storages_records_origin(monkeypatch):
+    query = action()
+    query["datasource"] = {
+        "datasourceConfiguration": {"url": "http://governance-api:8000"},
+        "datasourceStorages": {},
+    }
+    query["actionConfiguration"]["path"] = "/applications/{{appsmith.store.currentApplicationId}}/history"
+    observed, refs = collect(monkeypatch, [query], [])
+    assert observed[0]["destination"] == {"scheme": "http", "host": "governance-api", "port": 8000}
+    assert refs[0]["datasource_id"] is None

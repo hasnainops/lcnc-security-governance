@@ -6,13 +6,18 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 import psycopg
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
+from .reviewer_identity import (
+    ReviewerAccessError,
+    verified_reviewer,
+    reviewer_policy_for_role,
+)
 from .database import get_connection
 
 
@@ -183,12 +188,32 @@ def escalate_overdue():
             WHERE status = 'pending'
               AND due_at <= %s
               AND escalation_level = 0
-            ORDER BY due_at ASC;
+            ORDER BY application_id, id;
             """,
             (now,),
         ).fetchall()
 
-        for request in overdue:
+        escalated_count = 0
+
+        for candidate in overdue:
+            connection.execute(
+                "SELECT public.lock_application_for_review(%s::uuid)",
+                (candidate["application_id"],),
+            )
+
+            request = connection.execute(
+                """
+                SELECT * FROM approval_requests
+                WHERE id = %s
+                  AND status = 'pending'
+                  AND due_at <= %s
+                  AND escalation_level = 0
+                """,
+                (candidate["id"], now),
+            ).fetchone()
+
+            if not request:
+                continue
             if request["route_type"] in (
                 "security_review",
                 "security_remediation_review",
@@ -220,6 +245,8 @@ def escalate_overdue():
                 ),
             )
 
+            escalated_count += 1
+
             insert_event(
                 connection,
                 request["id"],
@@ -240,7 +267,7 @@ def escalate_overdue():
 
         connection.commit()
 
-    return len(overdue)
+    return escalated_count
 
 
 _stop_event = Event()
@@ -650,6 +677,7 @@ def route_application(
 def record_decision(
     approval_id: UUID,
     payload: HumanDecision,
+    authorization: str | None = Header(default=None),
 ):
     now = datetime.now(timezone.utc)
 
@@ -680,6 +708,28 @@ def record_decision(
                 status_code=404,
                 detail="Approval request not found.",
             )
+
+        actor = payload.actor
+        verified_policy = None
+        if (
+            approval["route_type"] in (
+                "security_review", "security_remediation_review"
+            )
+            or approval["required_role"] in (
+                "Security/GRC Reviewer", "Senior Security/GRC Reviewer"
+            )
+        ):
+            try:
+                verified_policy = reviewer_policy_for_role(
+                    approval["required_role"]
+                )
+                actor = verified_reviewer(
+                    authorization,
+                    approval["assigned_to"],
+                    approval["required_role"],
+                )
+            except ReviewerAccessError as exc:
+                raise HTTPException(exc.status, str(exc)) from None
 
         latest = connection.execute(
             "SELECT id FROM governance_decisions WHERE application_id=%s "
@@ -737,7 +787,7 @@ def record_decision(
                     connection,
                     approval_id,
                     "approval_blocked_training",
-                    actor=payload.actor,
+                    actor=actor,
                     details={
                         "required_incomplete_count": (
                             training_gate[
@@ -785,6 +835,7 @@ def record_decision(
                 status = %s,
                 human_decision = %s,
                 decided_by = %s,
+                verified_reviewer_policy = %s,
                 decision_reason = %s,
                 decided_at = %s,
                 updated_at = %s
@@ -794,7 +845,8 @@ def record_decision(
             (
                 status_map[payload.decision],
                 payload.decision,
-                payload.actor,
+                actor,
+                verified_policy,
                 payload.reason,
                 now,
                 now,
@@ -806,7 +858,7 @@ def record_decision(
             connection,
             approval_id,
             "human_decision_recorded",
-            actor=payload.actor,
+            actor=actor,
             details={
                 "decision": payload.decision,
                 "reason": payload.reason,

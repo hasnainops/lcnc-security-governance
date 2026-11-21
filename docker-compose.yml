@@ -149,15 +149,18 @@ services:
   # --------------------------------------------------
 
   appsmith-proxy:
-    image: caddy:2.11.6-alpine
+    # Preserve the verified deployed Caddy 2.11.4 image for this scoped guard.
+    image: caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     container_name: lcnc-appsmith-proxy
     command:
       - caddy
-      - reverse-proxy
-      - --from
-      - :80
-      - --to
-      - http://appsmith:80
+      - run
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
+    volumes:
+      - ./appsmith/publish-guard.Caddyfile:/etc/caddy/Caddyfile:ro
     ports:
       - "127.0.0.1:8080:80"
     depends_on:

@@ -754,6 +754,8 @@ def _extract_action_url(action: dict):
         return legacy_url
 
     storages = datasource["datasourceStorages"]
+    if storages == {} and datasource.get("id") is None and action.get("pluginType") == "API":
+        return legacy_url
     if not isinstance(storages, dict) or len(storages) != 1:
         return None
 
@@ -1530,6 +1532,41 @@ def group_inline_api_evidence(
     }
 
 
+def read_release_manifest(client, application_id):
+    """Read the draft digest for this native Appsmith application."""
+    import re
+    from urllib.parse import quote
+
+    url = (
+        f"{APPSMITH_BASE_URL.rstrip('/')}/api/v1/applications/"
+        f"{quote(application_id, safe='')}/release-manifest"
+    )
+    try:
+        response = client.get(url, follow_redirects=False)
+        if response.status_code != 200:
+            return None
+        manifest = response.json()
+    except (httpx.HTTPError, ValueError):
+        return None
+
+    if not isinstance(manifest, dict):
+        return None
+
+    digest = manifest.get("release_sha256")
+    if (
+        manifest.get("application_id") != application_id
+        or manifest.get("manifest_version") != "appsmith-release-manifest-v1"
+        or not isinstance(digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+    ):
+        return None
+
+    return {
+        "manifest_version": manifest["manifest_version"],
+        "release_sha256": digest,
+    }
+
+
 def build_appsmith_observation(application, observed_actions):
     """Build evidence without inventing connector identities."""
 
@@ -1992,6 +2029,7 @@ def run_discovery_cycle():
                         )
 
                 if record is not None:
+                    manifest_before = read_release_manifest(client, application["id"])
                     observed_actions = []
                     action_datasource_refs = []
                     page_field_evidence = []
@@ -2110,6 +2148,10 @@ def run_discovery_cycle():
                         page_field_evidence,
                     )
                     observation["data_field_evidence"] = field_evidence
+                    if manifest_before is not None:
+                        manifest_after = read_release_manifest(client, application["id"])
+                        if manifest_after == manifest_before:
+                            observation.update(manifest_before)
 
                     try:
                         result = send_appsmith_observation(

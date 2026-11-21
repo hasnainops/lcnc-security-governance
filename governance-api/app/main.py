@@ -21,6 +21,10 @@ from .owner_context_routes import router as owner_context_router
 
 app.include_router(owner_context_router)
 
+from .appsmith_publish import router as appsmith_publish_router
+
+app.include_router(appsmith_publish_router)
+
 
 @app.get("/health")
 def health():

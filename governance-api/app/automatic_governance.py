@@ -47,6 +47,76 @@ def review_reasons(app, source):
     return reasons
 
 
+
+def build_decision_binding(app, source, policy, outcome):
+    """Bind governance decisions to verified native release evidence."""
+
+    payload = source.get("payload") or {}
+
+    evidence = {
+        "observation_id": str(source["id"]),
+        "observed_at": source["observed_at"].isoformat(),
+        "owner_context_id": (
+            str(app["owner_context_id"])
+            if app.get("owner_context_id") else None
+        ),
+        "classification_input_sha256": (
+            app.get("ml_classification_input_sha256")
+        ),
+        "authority": "deterministic_governance",
+    }
+
+    binding = {
+        "version": "automatic-governance-v1",
+        "application": {
+            k: app.get(k) for k in INPUT_FIELDS
+        },
+        "policy": policy,
+        "outcome": outcome,
+    }
+
+    native_id = app.get("external_id")
+    manifest = payload.get("manifest_version")
+    release_digest = payload.get("release_sha256")
+
+    release_verified = (
+        isinstance(native_id, str)
+        and bool(native_id)
+        and payload.get("external_id") == native_id
+        and payload.get("collection_complete") is True
+        and not payload.get("pending_reasons")
+        and manifest == "appsmith-release-manifest-v1"
+        and isinstance(release_digest, str)
+        and len(release_digest) == 64
+        and all(c in "0123456789abcdef" for c in release_digest)
+    )
+
+    if release_verified:
+
+        evidence.update({
+            "manifest_version": manifest,
+            "release_sha256": release_digest,
+        })
+
+        binding.update({
+            "version": "automatic-governance-v2",
+            "manifest_version": manifest,
+            "release_sha256": release_digest,
+            "application_id": str(app["id"]),
+        })
+
+    # Legacy discovery can still support inventory governance.
+    # Only v2 decisions can satisfy native publication binding.
+
+    digest = hashlib.sha256(
+        json.dumps(
+            binding, sort_keys=True, default=str
+        ).encode()
+    ).hexdigest()
+
+    return digest, evidence
+
+
 def evaluate_governance_if_needed(application_id):
     with get_connection() as connection:
         # Shared row lock serializes replicas and owner/source updates. Risk and
@@ -85,11 +155,9 @@ def evaluate_governance_if_needed(application_id):
                            outcome['reasons'] if outcome['outcome'] == 'SECURITY_REVIEW' else [])))}
         if datetime.now(timezone.utc)-source['observed_at'] > timedelta(minutes=3):
             raise HTTPException(409, 'Discovery evidence expired during evaluation')
-        digest = hashlib.sha256(json.dumps({
-            'version': 'automatic-governance-v1',
-            'application': {k: app.get(k) for k in INPUT_FIELDS},
-            'policy': policy, 'outcome': outcome,
-        }, sort_keys=True, default=str).encode()).hexdigest()
+        digest, source_evidence = build_decision_binding(
+            app, source, policy, outcome
+        )
         previous = connection.execute('''SELECT * FROM governance_decisions WHERE application_id=%s
             ORDER BY created_at DESC, id DESC LIMIT 1''', (application_id,)).fetchone()
         if previous and previous.get('input_sha256') == digest:
@@ -108,11 +176,7 @@ def evaluate_governance_if_needed(application_id):
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING created_at''',
                 (decision_id, application_id, risk['id'], policy_id, outcome['outcome'],
                  outcome['status'], outcome['required_role'], Jsonb(outcome['reasons']), digest,
-                 Jsonb({'observation_id': str(source['id']),
-                        'observed_at': source['observed_at'].isoformat(),
-                        'owner_context_id': str(app['owner_context_id']) if app.get('owner_context_id') else None,
-                        'classification_input_sha256': app.get('ml_classification_input_sha256'),
-                        'authority': 'deterministic_governance'}))).fetchone()
+                 Jsonb(source_evidence))).fetchone()
             decided_at, action = row['created_at'], 'evaluated'
         connection.execute('''UPDATE applications SET governance_status=%s,
             governance_outcome=%s, governance_decided_at=%s WHERE id=%s''',
