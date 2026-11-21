@@ -58,7 +58,148 @@ function showMessage(text) {
   }, 3000);
 }
 
+let executiveGeneration = 0;
+
+function executiveMetricGroup(container, heading, entries) {
+  const title = document.createElement("h3");
+  title.textContent = heading;
+  container.appendChild(title);
+
+  const group = document.createElement("div");
+  group.className = "summary";
+
+  for (const [label, value] of entries) {
+    const metric = document.createElement("div");
+    metric.className = "metric";
+
+    const number = document.createElement("span");
+    number.textContent = String(value);
+
+    const description = document.createElement("small");
+    description.textContent = label;
+
+    metric.append(number, description);
+    group.appendChild(metric);
+  }
+
+  container.appendChild(group);
+}
+
+function executiveDistribution(counts, labels) {
+  return [
+    ...Object.entries(labels).map(
+      ([key, label]) => [label, counts[key] ?? 0]
+    ),
+    ...Object.entries(counts)
+      .filter(([key]) => !Object.hasOwn(labels, key))
+      .map(([key, value]) => [key, value])
+  ];
+}
+
+async function loadExecutiveSummary() {
+  const generation = ++executiveGeneration;
+  const status = document.getElementById("executiveStatus");
+  const metrics = document.getElementById("executiveMetrics");
+
+  status.textContent = "Refreshing executive analytics…";
+  metrics.replaceChildren();
+
+  try {
+    const data = await portalRead("/api/executive-summary");
+
+    if (generation !== executiveGeneration) return;
+
+    const total = data.inventory_total;
+    const assessed = data.risk_status.assessed ?? 0;
+    const high = data.risk_levels.high ?? 0;
+    const critical = data.risk_levels.critical ?? 0;
+
+    const coverage = total
+      ? `${(100 * assessed / total).toFixed(1)}%`
+      : "N/A";
+
+    executiveMetricGroup(metrics, "Portfolio summary", [
+      ["Applications", total],
+      ["Risk assessment coverage", coverage],
+      ["High and critical risk", high + critical],
+      ["Blocked applications", data.governance_status.blocked ?? 0]
+    ]);
+
+    executiveMetricGroup(metrics, "Assessment coverage",
+      executiveDistribution(data.risk_status, {
+        assessed: "Assessed",
+        stale: "Stale",
+        not_assessed: "Not assessed"
+      })
+    );
+
+    executiveMetricGroup(metrics, "Assessed risk distribution",
+      executiveDistribution(data.risk_levels, {
+        critical: "Critical",
+        high: "High",
+        medium: "Medium",
+        low: "Low"
+      })
+    );
+
+    executiveMetricGroup(metrics, "Governance status",
+      executiveDistribution(data.governance_status, {
+        pending_review: "Pending review",
+        blocked: "Blocked",
+        completed: "Completed",
+        stale: "Stale",
+        not_evaluated: "Not evaluated"
+      })
+    );
+
+    executiveMetricGroup(metrics, "Governance outcomes",
+      executiveDistribution(data.governance_outcomes, {
+        AUTO_APPROVE: "Auto approve",
+        BUSINESS_REVIEW: "Business review",
+        SECURITY_REVIEW: "Security review",
+        BLOCK: "Block",
+        not_current: "No current decision",
+        not_evaluated: "Not evaluated"
+      })
+    );
+
+    const approvals = data.approval_status;
+
+    executiveMetricGroup(metrics, "Recorded open approval requests", [
+      ["Open requests", (approvals.pending ?? 0)
+        + (approvals.escalated ?? 0)],
+      ["Pending", approvals.pending ?? 0],
+      ["Escalated", approvals.escalated ?? 0],
+      ["Pending overdue", data.pending_overdue]
+    ]);
+
+    executiveMetricGroup(metrics, "Approval record history", [
+      ["Total approval records", data.approval_total],
+      ...executiveDistribution(approvals, {
+        pending: "Pending",
+        escalated: "Escalated",
+        approved: "Approved",
+        rejected: "Rejected",
+        changes_requested: "Changes requested",
+        superseded: "Superseded"
+      })
+    ]);
+
+    status.textContent =
+      `Database snapshot: ${data.snapshot_at}`;
+
+  } catch (error) {
+    if (generation !== executiveGeneration) return;
+
+    metrics.replaceChildren();
+    status.textContent =
+      `Executive analytics unavailable: ${error.message}`;
+  }
+}
+
+
 async function loadApplications() {
+  void loadExecutiveSummary();
   const generation = ++inventoryGeneration;
   document.getElementById("inventoryStatus").textContent = "Refreshing application inventory…";
   try {
@@ -81,7 +222,7 @@ async function loadApplications() {
       applications.length;
 
     document.getElementById("criticalCount").textContent =
-      applications.filter(app => app.risk_level === "critical").length;
+      applications.filter(app => app.risk_status === "assessed" && app.risk_level === "critical").length;
 
     document.getElementById("blockedCount").textContent =
       applications.filter(app => app.governance_status === "blocked").length;

@@ -466,6 +466,95 @@ def approvals(
     }
 
 
+@app.get("/executive-summary")
+def executive_summary():
+    """Current portfolio analytics, separate from event counters."""
+
+    with get_connection() as connection:
+        return connection.execute(
+            """
+            WITH risk_status_counts AS (
+                SELECT COALESCE(risk_status, 'unknown') AS key,
+                       COUNT(*) AS value
+                FROM applications
+                GROUP BY 1
+            ),
+            risk_level_counts AS (
+                SELECT COALESCE(risk_level, 'unknown') AS key,
+                       COUNT(*) AS value
+                FROM applications
+                WHERE risk_status = 'assessed'
+                GROUP BY 1
+            ),
+            governance_status_counts AS (
+                SELECT COALESCE(governance_status, 'unknown') AS key,
+                       COUNT(*) AS value
+                FROM applications
+                GROUP BY 1
+            ),
+            governance_outcome_counts AS (
+                SELECT CASE
+                    WHEN governance_status IN ('stale', 'not_evaluated')
+                    THEN 'not_current'
+                    ELSE COALESCE(governance_outcome, 'not_evaluated')
+                END AS key,
+                COUNT(*) AS value
+                FROM applications
+                GROUP BY 1
+            ),
+            approval_status_counts AS (
+                SELECT COALESCE(status, 'unknown') AS key,
+                       COUNT(*) AS value
+                FROM approval_requests
+                GROUP BY 1
+            )
+            SELECT
+                statement_timestamp() AS snapshot_at,
+
+                (SELECT COUNT(*) FROM applications)
+                    AS inventory_total,
+
+                (SELECT COUNT(*) FROM approval_requests)
+                    AS approval_total,
+
+                COALESCE(
+                    (SELECT jsonb_object_agg(key, value)
+                     FROM risk_status_counts),
+                    '{}'::jsonb
+                ) AS risk_status,
+
+                COALESCE(
+                    (SELECT jsonb_object_agg(key, value)
+                     FROM risk_level_counts),
+                    '{}'::jsonb
+                ) AS risk_levels,
+
+                COALESCE(
+                    (SELECT jsonb_object_agg(key, value)
+                     FROM governance_status_counts),
+                    '{}'::jsonb
+                ) AS governance_status,
+
+                COALESCE(
+                    (SELECT jsonb_object_agg(key, value)
+                     FROM governance_outcome_counts),
+                    '{}'::jsonb
+                ) AS governance_outcomes,
+
+                COALESCE(
+                    (SELECT jsonb_object_agg(key, value)
+                     FROM approval_status_counts),
+                    '{}'::jsonb
+                ) AS approval_status,
+
+                (SELECT COUNT(*) FROM approval_requests
+                 WHERE status = 'pending'
+                   AND due_at <= statement_timestamp())
+                    AS pending_overdue;
+            """
+        ).fetchone()
+
+
 @app.get("/escalations")
 def escalations():
     with get_connection() as connection:

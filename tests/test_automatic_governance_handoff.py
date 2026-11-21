@@ -11,7 +11,8 @@ from uuid import UUID
 
 import httpx
 import pytest
-from fastapi import HTTPException
+from fastapi import Header, HTTPException
+from fastapi.encoders import jsonable_encoder
 from test_lo1_classification_postgres import database_connection as isolated_database_connection, scenario
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,14 @@ def database_connection(isolated_database_connection):
                 db.execute('DROP ROLE lcnc_governance_review_access')
 
 
+def authenticated_decision(ns, approval_id, payload):
+    return ns['record_decision'](
+        approval_id,
+        payload,
+        authorization='Bearer lo3-test-reviewer',
+    )
+
+
 def prepare(scenario, monkeypatch):
     services, connect, app_id, _, _, observe, *_ = scenario
     package = services.automatic_classification.__package__
@@ -41,7 +50,36 @@ def prepare(scenario, monkeypatch):
         connection.autocommit = True
         for name in ('003_risk_assessments.sql', '004_policy_decisions.sql',
                      '005_governance_workflow.sql', '014_governance_approvals.sql',
-                     '024_automatic_governance_handoff.sql', '025_governance_review_lock.sql'):
+                     '024_automatic_governance_handoff.sql', '025_governance_review_lock.sql',
+                     '027_lo2_verified_reviewer_authority.sql'):
+
+            # The isolated PostgreSQL schema is reused across scenarios.
+            # Migration 027 is not intended to execute repeatedly.
+            if name == '027_lo2_verified_reviewer_authority.sql':
+
+                database = connection.execute(
+                    "SELECT current_database() AS name"
+                ).fetchone()
+
+                assert database['name'].startswith(
+                    'lcnc_lo1_test_'
+                ), "Refusing migration outside dedicated test database"
+
+                existing = connection.execute(
+                    '''
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM pg_attribute
+                        WHERE attrelid = 'approval_requests'::regclass
+                          AND attname = 'verified_reviewer_policy'
+                          AND NOT attisdropped
+                    ) AS present
+                    '''
+                ).fetchone()
+
+                if existing['present']:
+                    continue
+
             connection.execute((ROOT / 'database/migrations' / name).read_text())
         connection.execute("""UPDATE applications SET ml_classification_status='assessed',
             ml_classification_review_required=TRUE, ml_anomaly_status='assessed',
@@ -53,7 +91,7 @@ def prepare(scenario, monkeypatch):
         if state['outage']:
             raise httpx.ConnectError('fixture outage')
         if url.endswith('/assess'):
-            body = {'score': 30, 'level': 'medium', 'model_version': 'test-risk', 'factors': []}
+            body = state.get('risk', {'score': 30, 'level': 'medium', 'model_version': 'test-risk', 'factors': []})
         else:
             body = {'result': {'allow': state['allow'], 'action': 'allow' if state['allow'] else 'deny',
                               'reasons': [] if state['allow'] else ['fixture mandatory block']}}
@@ -63,16 +101,82 @@ def prepare(scenario, monkeypatch):
     # Execute the actual approval-service route function against the same database.
     source = (ROOT / 'governance-automation/app/main.py').read_text()
     tree = ast.parse(source)
-    names = {'route_settings', 'insert_event', 'route_application', 'record_decision'}
+    names = {'route_settings', 'insert_event', 'route_application', 'record_decision', 'escalate_overdue', 'executive_summary'}
     nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names]
     for n in nodes:
         n.decorator_list = []
     from datetime import datetime, timedelta, timezone
     from uuid import uuid4
     from psycopg.types.json import Jsonb
+    # Exercise the actual reviewer validator.
+    # Only the external Vault lookup is replaced by a test fixture.
+    from importlib.util import spec_from_file_location, module_from_spec
+    from io import BytesIO
+    import json
+
+    reviewer_path = ROOT / 'governance-automation/app/reviewer_identity.py'
+
+    spec = spec_from_file_location(
+        '_lo3_test_reviewer_identity', reviewer_path
+    )
+
+    reviewer = module_from_spec(spec)
+    spec.loader.exec_module(reviewer)
+
+    class FixtureVaultClient:
+
+        def open(self, request, timeout=3):
+
+            assert request.full_url.endswith(
+                '/v1/auth/token/lookup-self'
+            )
+
+            headers = {
+                key.lower(): value
+                for key, value in request.header_items()
+            }
+
+            token = headers.get('x-vault-token')
+
+            if token == 'lo3-test-reviewer':
+                policies = ['lcnc-security-reviewer']
+
+            elif token == 'lo3-test-senior-reviewer':
+                policies = ['lcnc-senior-security-reviewer']
+
+            elif token == 'lo3-test-unprivileged':
+                policies = ['default']
+
+            else:
+                raise reviewer.HTTPError(
+                    request.full_url, 403,
+                    'Fixture credential refused',
+                    None, None,
+                )
+
+            return BytesIO(json.dumps({
+                'data': {
+                    'policies': policies,
+                    'entity_id': (
+                        '00000000-0000-4000-8000-000000000031'
+                    ),
+                }
+            }).encode())
+
+    monkeypatch.setattr(
+        reviewer,
+        'build_opener',
+        lambda *args: FixtureVaultClient(),
+    )
+
     ns = {'UUID': UUID, 'uuid4': uuid4, 'datetime': datetime, 'timedelta': timedelta,
           'timezone': timezone, 'Jsonb': Jsonb, 'get_connection': connect,
           'HTTPException': HTTPException, 'HumanDecision': object,
+          'Header': Header,
+          'jsonable_encoder': jsonable_encoder,
+          'ReviewerAccessError': reviewer.ReviewerAccessError,
+          'verified_reviewer': reviewer.verified_reviewer,
+          'reviewer_policy_for_role': reviewer.reviewer_policy_for_role,
           'get_training_gate': lambda *a: {'approval_ready': True}}
     exec(compile(ast.Module(body=nodes, type_ignores=[]), '<actual approval service>', 'exec'), ns)
     def route(_):
@@ -134,7 +238,7 @@ def test_restricted_role_routes_and_reviews_without_application_write_access(sce
         assert first['approval_automation']['status'] == 'routed'
         approval = rows('approval_requests')[0]
         assert approval['required_role'] == 'Security/GRC Reviewer'
-        ns['record_decision'](approval['id'], types.SimpleNamespace(
+        authenticated_decision(ns, approval['id'], types.SimpleNamespace(
             decision='request_changes', actor='test-reviewer', reason='test'))
         again = m.evaluate_governance_if_needed(app)
         assert again['decision_id'] == first['decision_id']
@@ -186,7 +290,7 @@ def test_restricted_role_human_review_rejects_expired_evidence(scenario, monkeyp
         with c() as db:
             db.execute("UPDATE discovery_observations SET observed_at=NOW()-INTERVAL '10 minutes' WHERE application_id=%s", (app,))
         with pytest.raises(HTTPException) as error:
-            ns['record_decision'](approval['id'], types.SimpleNamespace(
+            authenticated_decision(ns, approval['id'], types.SimpleNamespace(
                 decision='request_changes', actor='test-reviewer', reason='test'))
         assert error.value.status_code == 409
         assert 'Fresh discovery' in error.value.detail
@@ -275,7 +379,7 @@ def test_review_handoff_and_unchanged_poll_preserves_human_decision(scenario, mo
     assert first['governance']['outcome'] == 'SECURITY_REVIEW'
     approval = rows('approval_requests')[0]
     assert approval['required_role'] == 'Security/GRC Reviewer'
-    ns['record_decision'](approval['id'], types.SimpleNamespace(decision='request_changes', actor='test-reviewer', reason='test'))
+    authenticated_decision(ns, approval['id'], types.SimpleNamespace(decision='request_changes', actor='test-reviewer', reason='test'))
     second = m.evaluate_governance_if_needed(app)
     assert second['action'] == 'reused' and second['decision_id'] == first['decision_id']
     assert len(rows('governance_decisions')) == len(rows('approval_requests')) == 1
@@ -291,7 +395,7 @@ def test_policy_change_blocks_and_cannot_be_overridden(scenario, monkeypatch):
     approvals = rows('approval_requests')
     assert approvals[0]['status'] == 'superseded'
     with pytest.raises(HTTPException) as error:
-        ns['record_decision'](approvals[-1]['id'], types.SimpleNamespace(decision='approve', actor='test', reason='test'))
+        authenticated_decision(ns, approvals[-1]['id'], types.SimpleNamespace(decision='approve', actor='test', reason='test'))
     assert error.value.status_code == 409
 
 
@@ -338,7 +442,7 @@ def test_stale_source_prevents_new_routing_and_human_decision(scenario, monkeypa
     result = m.evaluate_governance_if_needed(app)
     assert result['action'] == 'pending' and state['routes'] == 1
     with pytest.raises(HTTPException) as error:
-        ns['record_decision'](approval['id'], types.SimpleNamespace(decision='approve', actor='test', reason='test'))
+        authenticated_decision(ns, approval['id'], types.SimpleNamespace(decision='approve', actor='test', reason='test'))
     assert error.value.status_code == 409
 
 
@@ -378,7 +482,7 @@ def test_training_gate_still_blocks_approval(scenario, monkeypatch):
                                          'blocking_assignments': [{'module_id': 'test'}]}
     ns['jsonable_encoder'] = lambda x: x
     with pytest.raises(HTTPException) as error:
-        ns['record_decision'](rows('approval_requests')[0]['id'], types.SimpleNamespace(decision='approve', actor='test', reason='test'))
+        authenticated_decision(ns, rows('approval_requests')[0]['id'], types.SimpleNamespace(decision='approve', actor='test', reason='test'))
     assert error.value.status_code == 409
     assert rows('approval_requests')[0]['human_decision'] is None
 
@@ -393,3 +497,377 @@ def test_training_outage_prevents_routing_and_retries(scenario, monkeypatch):
     monkeypatch.setattr(m, 'assign_required_training', lambda _: {'status': 'checked'})
     result = m.evaluate_governance_if_needed(app)
     assert result['decision_id'] == first['decision_id'] and len(rows('approval_requests')) == 1
+
+
+
+def test_authenticated_reviewer_boundary(scenario, monkeypatch):
+
+    m, c, app, state, rows, ns = prepare(
+        scenario, monkeypatch
+    )
+
+    result = m.evaluate_governance_if_needed(app)
+
+    assert result['governance']['outcome'] == 'SECURITY_REVIEW'
+
+    approval = rows('approval_requests')[0]
+
+    payload = types.SimpleNamespace(
+        decision='request_changes',
+        actor='untrusted-client-supplied-actor',
+        reason='Controlled integration test',
+    )
+
+    for credential, expected_status in (
+        (None, 401),
+        ('Bearer lo3-test-unprivileged', 403),
+    ):
+
+        with pytest.raises(HTTPException) as error:
+
+            ns['record_decision'](
+                approval['id'],
+                payload,
+                authorization=credential,
+            )
+
+        assert error.value.status_code == expected_status
+
+        unchanged = rows('approval_requests')[0]
+
+        assert unchanged['status'] == 'pending'
+        assert unchanged['human_decision'] is None
+        assert unchanged['verified_reviewer_policy'] is None
+
+    authenticated_decision(ns, approval['id'], payload)
+
+    saved = rows('approval_requests')[0]
+
+    assert saved['status'] == 'changes_requested'
+
+    assert saved['decided_by'] == (
+        'vault:00000000-0000-4000-8000-000000000031'
+    )
+
+    assert saved['verified_reviewer_policy'] == (
+        'lcnc-security-reviewer'
+    )
+
+
+
+def prepare_lo3_risk_scenario(connect, app, state, score, level):
+
+    state['risk'] = {
+        'score': score,
+        'level': level,
+        'model_version': 'test-risk',
+        'factors': [],
+    }
+
+    with connect() as db:
+
+        assert db.execute(
+            'SELECT current_database() AS name'
+        ).fetchone()['name'].startswith('lcnc_lo1_test_')
+
+        db.execute(
+            '''
+            UPDATE applications
+            SET data_classification='internal',
+                ml_classification_status='assessed',
+                ml_classification_review_required=FALSE,
+                ml_anomaly_status='assessed',
+                ml_anomalous=FALSE,
+                security_scan_status='scanned',
+                security_scan_passed=TRUE,
+                risk_status='stale'
+            WHERE id=%s
+            ''',
+            (app,),
+        )
+
+        db.execute(
+            '''
+            UPDATE discovery_observations
+            SET payload=jsonb_set(
+                payload,
+                '{collection_complete}',
+                'true'::jsonb
+            )
+            WHERE application_id=%s
+              AND source='appsmith'
+            ''',
+            (app,),
+        )
+
+
+def test_lo3_automatic_low_risk_approval(scenario, monkeypatch):
+
+    m, c, app, state, rows, ns = prepare(
+        scenario, monkeypatch
+    )
+
+    prepare_lo3_risk_scenario(c, app, state, 0, 'low')
+
+    result = m.evaluate_governance_if_needed(app)
+
+    assert result['governance']['outcome'] == 'AUTO_APPROVE'
+    assert result['governance']['status'] == 'completed'
+    assert result['approval_automation']['status'] == 'routed'
+
+    approval = rows('approval_requests')[0]
+
+    assert approval['governance_outcome'] == 'AUTO_APPROVE'
+    assert approval['route_type'] == 'human_confirmation'
+    assert approval['required_role'] == 'Business Application Owner'
+
+    again = m.evaluate_governance_if_needed(app)
+
+    assert again['decision_id'] == result['decision_id']
+    assert len(rows('governance_decisions')) == 1
+    assert len(rows('approval_requests')) == 1
+
+
+def test_lo3_high_risk_sla_escalation(scenario, monkeypatch):
+
+    m, c, app, state, rows, ns = prepare(
+        scenario, monkeypatch
+    )
+
+    prepare_lo3_risk_scenario(c, app, state, 60, 'high')
+
+    result = m.evaluate_governance_if_needed(app)
+
+    assert result['governance']['outcome'] == 'SECURITY_REVIEW'
+    assert result['governance']['status'] == 'pending_review'
+    assert 'High risk' in ' '.join(
+        result['governance']['reasons']
+    )
+
+    approval = rows('approval_requests')[0]
+
+    assert approval['required_role'] == 'Security/GRC Reviewer'
+    assert approval['route_type'] == 'security_review'
+    assert approval['status'] == 'pending'
+    assert approval['escalation_level'] == 0
+
+    sla_seconds = (
+        approval['due_at'] - approval['created_at']
+    ).total_seconds()
+
+    assert abs(sla_seconds - 8 * 3600) < 10
+
+    ns['escalate_overdue']()
+
+    assert rows('approval_requests')[0]['status'] == 'pending'
+
+    # Simulate SLA expiry exclusively in the isolated test DB.
+    with c() as db:
+
+        db.execute(
+            '''
+            UPDATE approval_requests
+            SET due_at=created_at
+            WHERE id=%s
+            ''',
+            (approval['id'],),
+        )
+
+    with approval_runtime(c) as restricted_connection:
+
+        ns['get_connection'] = restricted_connection
+
+        ns['escalate_overdue']()
+        ns['escalate_overdue']()
+
+        escalated = rows('approval_requests')[0]
+
+        assert escalated['status'] == 'escalated'
+        assert escalated['required_role'] == (
+            'Senior Security/GRC Reviewer'
+        )
+        assert escalated['escalation_level'] == 1
+        assert escalated['escalated_at'] is not None
+
+        payload = types.SimpleNamespace(
+            decision='request_changes',
+            actor='untrusted-client-actor',
+            reason='High-risk application requires remediation',
+        )
+
+        # Ordinary reviewers must not decide senior requests.
+        with pytest.raises(HTTPException) as error:
+
+            ns['record_decision'](
+                approval['id'],
+                payload,
+                authorization='Bearer lo3-test-reviewer',
+            )
+
+        assert error.value.status_code == 403
+
+        unchanged = rows('approval_requests')[0]
+
+        assert unchanged['status'] == 'escalated'
+        assert unchanged['human_decision'] is None
+
+        ns['record_decision'](
+            approval['id'],
+            payload,
+            authorization='Bearer lo3-test-senior-reviewer',
+        )
+
+        saved = rows('approval_requests')[0]
+
+        assert saved['status'] == 'changes_requested'
+        assert saved['verified_reviewer_policy'] == (
+            'lcnc-senior-security-reviewer'
+        )
+
+    with c() as db:
+
+        events = db.execute(
+            '''
+            SELECT event_type, details
+            FROM approval_events
+            WHERE approval_request_id=%s
+              AND event_type='approval_escalated'
+            ''',
+            (approval['id'],),
+        ).fetchall()
+
+    assert len(events) == 1
+
+    assert events[0]['details']['previous_role'] == (
+        'Security/GRC Reviewer'
+    )
+
+    assert events[0]['details']['escalated_role'] == (
+        'Senior Security/GRC Reviewer'
+    )
+
+
+
+def test_lo3_executive_summary(scenario, monkeypatch):
+
+    m, c, app, state, rows, ns = prepare(
+        scenario, monkeypatch
+    )
+
+    prepare_lo3_risk_scenario(c, app, state, 60, 'high')
+
+    def summary():
+
+        with approval_runtime(c) as restricted_connection:
+            original = ns['get_connection']
+            ns['get_connection'] = restricted_connection
+
+            try:
+                return ns['executive_summary']()
+            finally:
+                ns['get_connection'] = original
+
+    before = summary()
+
+    m.evaluate_governance_if_needed(app)
+
+    assessed = summary()
+
+    assert assessed['inventory_total'] == before['inventory_total']
+
+    assert assessed['risk_status'].get('assessed', 0) == (
+        before['risk_status'].get('assessed', 0) + 1
+    )
+
+    assert assessed['risk_levels'].get('high', 0) == (
+        before['risk_levels'].get('high', 0) + 1
+    )
+
+    assert assessed['approval_total'] == before['approval_total'] + 1
+
+    assert assessed['approval_status'].get('pending', 0) == (
+        before['approval_status'].get('pending', 0) + 1
+    )
+
+    assert sum(assessed['risk_status'].values()) == (
+        assessed['inventory_total']
+    )
+
+    assert sum(assessed['risk_levels'].values()) == (
+        assessed['risk_status']['assessed']
+    )
+
+    assert sum(assessed['governance_status'].values()) == (
+        assessed['inventory_total']
+    )
+
+    assert sum(assessed['governance_outcomes'].values()) == (
+        assessed['inventory_total']
+    )
+
+    assert sum(assessed['approval_status'].values()) == (
+        assessed['approval_total']
+    )
+
+    approval = rows('approval_requests')[0]
+
+    with c() as db:
+
+        db.execute(
+            """
+            UPDATE approval_requests
+            SET due_at=created_at
+            WHERE id=%s
+            """,
+            (approval['id'],),
+        )
+
+    overdue = summary()
+
+    assert overdue['pending_overdue'] >= 1
+
+    ns['escalate_overdue']()
+
+    escalated = summary()
+
+    assert escalated['approval_total'] == assessed['approval_total']
+
+    assert escalated['approval_status'].get('escalated', 0) >= (
+        assessed['approval_status'].get('escalated', 0) + 1
+    )
+
+    assert rows('approval_requests')[0]['status'] == 'escalated'
+
+    with c() as db:
+
+        db.execute(
+            """
+            UPDATE applications
+            SET risk_status='stale',
+                governance_status='stale'
+            WHERE id=%s
+            """,
+            (app,),
+        )
+
+    stale = summary()
+
+    # Historical high score must not remain in assessed risk totals.
+
+    assert stale['risk_levels'].get('high', 0) == (
+        assessed['risk_levels'].get('high', 0) - 1
+    )
+
+    assert stale['risk_status'].get('stale', 0) == (
+        assessed['risk_status'].get('stale', 0) + 1
+    )
+
+    assert stale['governance_status'].get('stale', 0) == (
+        assessed['governance_status'].get('stale', 0) + 1
+    )
+
+    assert stale['governance_outcomes'].get('not_current', 0) == (
+        assessed['governance_outcomes'].get('not_current', 0) + 1
+    )
+
+    assert stale['approval_total'] == assessed['approval_total']

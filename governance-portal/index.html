@@ -40,6 +40,30 @@
         </div>
       </details>
     </section>
+    <section class="panel" aria-labelledby="executiveHeading">
+      <h2 id="executiveHeading">Executive Governance Overview</h2>
+
+      <p>
+        Current application risk and governance analytics from
+        persisted records, separate from infrastructure health
+        and historical processing counters.
+      </p>
+
+      <p id="executiveStatus" role="status" aria-live="polite">
+        Loading executive analytics…
+      </p>
+
+      <div id="executiveMetrics"></div>
+
+      <p>
+        Risk severity includes assessed applications only.
+        Stale and unassessed risk is reported separately.
+        Approval totals include historical requests.
+        Open request status alone does not establish
+        current review eligibility.
+      </p>
+    </section>
+
     <p id="inventoryStatus" role="status">Loading application inventory…</p>
     <section class="summary">
       <div class="metric">
