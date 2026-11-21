@@ -159,16 +159,37 @@ def test_security_scan_fails_closed_without_trusted_observation(
 def test_jit_check_fails_closed_without_active_grant(
     monkeypatch,
 ):
+    """An authenticated subject without a JIT grant is denied."""
+
+    from contextlib import nullcontext
+
+    subject = "vault:a84be332-d855-42cb-a442-419509c5d26f"
+    credential = "Bearer isolated-legacy-test-token"
+
+    def verified_principal(authorization):
+        assert authorization == credential
+        return {
+            "subject_id": subject,
+            "role": "developer",
+        }
+
+    monkeypatch.setattr(
+        jit,
+        "verified_access_principal",
+        verified_principal,
+    )
+
     monkeypatch.setattr(
         jit,
         "get_connection",
-        lambda: FakeConnection(None),
+        lambda: nullcontext(FakeConnection(None)),
     )
 
     result = jit.check_privilege(
         application_id=APPLICATION_ID,
-        subject_id="citizen@example.com",
+        subject_id=subject,
         action="export",
+        authorization=credential,
     )
 
     assert result == {

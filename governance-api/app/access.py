@@ -44,12 +44,17 @@ class AccessRequest(BaseModel):
 def check_jit_privilege(
     application_id: UUID,
     request: AccessRequest,
+    authorization: str | None = None,
 ):
     try:
         response = httpx.get(
             (
                 f"{GOVERNANCE_AUTOMATION_URL}"
                 "/privileges/check"
+            ),
+            headers=(
+                {"Authorization": authorization}
+                if authorization else {}
             ),
             params={
                 "application_id": str(application_id),
@@ -91,6 +96,7 @@ def check_jit_privilege(
 def authorize_and_persist(
     application_id: UUID,
     request: AccessRequest,
+    authorization: str | None = None,
 ):
     with get_connection() as connection:
         application = connection.execute(
@@ -108,10 +114,7 @@ def authorize_and_persist(
             detail="Application not found",
         )
 
-    jit = check_jit_privilege(
-        application_id,
-        request,
-    )
+    jit = check_jit_privilege(application_id, request, authorization=authorization)
 
     policy_input = {
         "subject_id": request.subject_id,

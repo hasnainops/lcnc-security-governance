@@ -1,6 +1,6 @@
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, status
 from psycopg.errors import UniqueViolation
 
 from app.database import get_connection
@@ -358,6 +358,10 @@ from .access import (
     AccessRequest,
     authorize_and_persist,
 )
+from .access_identity import (
+    ReviewerAccessError,
+    verified_access_principal,
+)
 
 
 @app.post(
@@ -366,10 +370,34 @@ from .access import (
 def authorize_application_action(
     application_id: UUID,
     payload: AccessRequest,
+    authorization: str | None = Header(default=None),
 ):
+    try:
+        principal = verified_access_principal(
+            authorization
+        )
+    except ReviewerAccessError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail=str(exc),
+        ) from None
+
+    if (
+        payload.subject_id != principal["subject_id"]
+        or payload.role != principal["role"]
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Access identity and role must match "
+                "the authenticated Vault principal."
+            ),
+        )
+
     return authorize_and_persist(
         application_id,
         payload,
+        authorization=authorization,
     )
 
 

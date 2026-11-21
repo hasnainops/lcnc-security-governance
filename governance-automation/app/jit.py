@@ -6,12 +6,54 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 import psycopg
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
 from .database import get_connection
+from .reviewer_identity import (
+    ReviewerAccessError,
+    verified_reviewer,
+    verified_access_principal,
+)
+
+
+
+def _verified_jit_actor(authorization, asserted_actor):
+    """Bind privileged JIT changes to a verified Vault reviewer."""
+
+    try:
+        try:
+            actor = verified_reviewer(
+                authorization,
+                required_role="Security/GRC Reviewer",
+            )
+        except ReviewerAccessError as exc:
+            if exc.status != 403:
+                raise
+
+            actor = verified_reviewer(
+                authorization,
+                required_role="Senior Security/GRC Reviewer",
+            )
+
+    except ReviewerAccessError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail=str(exc),
+        ) from None
+
+    if asserted_actor is not None and actor != asserted_actor:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "JIT actor must match the authenticated "
+                "Vault reviewer."
+            ),
+        )
+
+    return actor
 
 
 jit_router = APIRouter(
@@ -201,7 +243,28 @@ def stop_jit_expiry_worker():
 )
 def create_privilege_request(
     payload: PrivilegeRequestCreate,
+    authorization: str | None = Header(default=None),
 ):
+    try:
+        principal = verified_access_principal(authorization)
+    except ReviewerAccessError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail=str(exc),
+        ) from None
+
+    if (
+        payload.subject_id != principal["subject_id"]
+        or payload.base_role != principal["role"]
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "JIT requester identity and role must match "
+                "the authenticated Vault principal."
+            ),
+        )
+
     request_id = uuid4()
 
     with get_connection() as connection:
@@ -286,7 +349,10 @@ def list_privilege_requests(
         ge=1,
         le=500,
     ),
+    authorization: str | None = Header(default=None),
 ):
+    _verified_jit_actor(authorization, None)
+
     with get_connection() as connection:
         records = connection.execute(
             """
@@ -314,7 +380,10 @@ def list_privilege_requests(
 def decide_privilege_request(
     request_id: UUID,
     payload: PrivilegeDecision,
+    authorization: str | None = Header(default=None),
 ):
+    _verified_jit_actor(authorization, payload.actor)
+
     now = datetime.now(timezone.utc)
 
     with get_connection() as connection:
@@ -470,7 +539,10 @@ def decide_privilege_request(
 @jit_router.get("/grants")
 def list_privilege_grants(
     active_only: bool = False,
+    authorization: str | None = Header(default=None),
 ):
+    _verified_jit_actor(authorization, None)
+
     expire_grants()
 
     with get_connection() as connection:
@@ -513,7 +585,22 @@ def check_privilege(
     application_id: UUID,
     subject_id: str,
     action: str,
+    authorization: str | None = Header(default=None),
 ):
+    try:
+        principal = verified_access_principal(authorization)
+    except ReviewerAccessError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail=str(exc),
+        ) from None
+
+    if principal["subject_id"] != subject_id:
+        raise HTTPException(
+            status_code=403,
+            detail="JIT grant checks are restricted to the authenticated subject.",
+        )
+
     with get_connection() as connection:
         grant = connection.execute(
             """
@@ -552,7 +639,10 @@ def check_privilege(
 def revoke_privilege_grant(
     grant_id: UUID,
     payload: PrivilegeRevocation,
+    authorization: str | None = Header(default=None),
 ):
+    _verified_jit_actor(authorization, payload.actor)
+
     now = datetime.now(timezone.utc)
 
     with get_connection() as connection:
@@ -615,7 +705,11 @@ def revoke_privilege_grant(
 
 
 @jit_router.post("/expire/run")
-def run_expiry():
+def run_expiry(
+    authorization: str | None = Header(default=None),
+):
+    _verified_jit_actor(authorization, None)
+
     count = expire_grants()
 
     return {
