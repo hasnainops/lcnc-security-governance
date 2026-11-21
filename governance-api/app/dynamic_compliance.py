@@ -90,11 +90,107 @@ def control(
     }
 
 
+def current_reviewed_release(application, *, connection=None):
+    """Validate a current Appsmith review without publishing."""
+    if (
+        str(application.get("platform", "")).lower() != "appsmith"
+        or not application.get("external_id")
+        or application.get("governance_status") != "pending_review"
+        or application.get("governance_outcome") != "SECURITY_REVIEW"
+    ):
+        return None
+
+    from .appsmith_publish import check_publish
+    import httpx
+    import psycopg
+
+    from contextlib import nullcontext
+
+    try:
+        # A savepoint isolates database errors during optional review
+        # validation without aborting the caller's transaction.
+        with (connection.transaction() if connection is not None
+              else nullcontext()):
+            kwargs = (
+                {"connection": connection}
+                if connection is not None else {}
+            )
+            result = check_publish(
+                application["external_id"],
+                record_receipt=False,
+                **kwargs,
+            )
+    except (HTTPException, httpx.HTTPError, psycopg.Error, ValueError):
+        return None
+
+    if (
+        result.get("allowed") is True
+        and result.get("review_verified") is True
+        and result.get("application_id") == str(application.get("id"))
+        and result.get("governance_decision_id")
+        and result.get("observation_id")
+    ):
+        return result
+
+    return None
+
+
+def verified_proxy_denial(application, access, now=None):
+    """Recognize recent, correlated proxy-denial evidence only."""
+    if not access:
+        return False
+
+    from .appsmith_publish import VERSION
+
+    if not (
+        application.get("id") is not None
+        and str(access.get("application_id"))
+            == str(application["id"])
+        and access.get("subject_id") == "appsmith-proxy"
+        and access.get("role") == "service"
+        and access.get("requested_action") == "publish_preflight"
+        and access.get("allowed") is False
+        and access.get("decision") == "deny"
+        and access.get("policy_version") == VERSION
+        and access.get("proxy_denial_http_status") == 403
+        and access.get("registration_status")
+            == application.get("registration_status")
+        and access.get("data_classification")
+            == application.get("data_classification")
+    ):
+        return False
+
+    verified = access.get("proxy_denial_verified_at")
+    evaluated = access.get("evaluated_at")
+    now = now or datetime.now(timezone.utc)
+
+    if not (
+        isinstance(verified, datetime)
+        and isinstance(evaluated, datetime)
+        and verified.tzinfo is not None
+        and evaluated.tzinfo is not None
+    ):
+        return False
+
+    return (
+        evaluated <= verified <= now
+        and timedelta(0) <= now - verified
+        <= timedelta(hours=24)
+        and timedelta(0) <= verified - evaluated
+        <= timedelta(minutes=2)
+    )
+
+
 def evaluate_dynamic_compliance(
     application_id: UUID,
+    *,
+    connection=None,
 ):
-    with get_connection() as connection:
-        application = connection.execute(
+    from contextlib import nullcontext
+
+    with (nullcontext(connection) if connection is not None
+          else get_connection()) as db_connection:
+        application = db_connection.execute(
             """
             SELECT *
             FROM applications
@@ -109,7 +205,7 @@ def evaluate_dynamic_compliance(
                 detail="Application not found",
             )
 
-        latest_transfer = connection.execute(
+        latest_transfer = db_connection.execute(
             """
             SELECT *
             FROM integration_transfer_events
@@ -120,7 +216,7 @@ def evaluate_dynamic_compliance(
             (application_id,),
         ).fetchone()
 
-        latest_access = connection.execute(
+        latest_access = db_connection.execute(
             """
             SELECT *
             FROM access_decisions
@@ -402,7 +498,18 @@ def evaluate_dynamic_compliance(
     )
 
     # CTRL-06 — OPA authorization
-    if latest_access is None:
+    if verified_proxy_denial(application, latest_access):
+        access_status = "pass"
+        access_evidence = (
+            "OPA-backed publication denial verified at the "
+            "governance proxy; "
+            f"decision={latest_access['id']}; "
+            f"verified_at={latest_access['proxy_denial_verified_at'].isoformat()}. "
+            "Evidence is limited to the observed publication denial."
+        )
+        access_remediation = None
+
+    elif latest_access is None:
         access_status = "not_assessed"
         access_evidence = (
             "No OPA authorization evidence exists."
@@ -443,7 +550,21 @@ def evaluate_dynamic_compliance(
         or "not_assessed"
     ).lower()
 
-    if governance_state in {
+    reviewed_release = (
+        current_reviewed_release(
+            application,
+            **({"connection": connection}
+               if connection is not None else {}),
+        )
+        if governance_state == "pending_review"
+        else None
+    )
+
+    if reviewed_release:
+        governance_control_status = "pass"
+        governance_remediation = None
+
+    elif governance_state in {
         "stale",
         "pending",
         "pending_review",
@@ -521,6 +642,12 @@ def evaluate_dynamic_compliance(
             (
                 "Current governance state: "
                 f"{governance_state}"
+                + (
+                    "; current authenticated release review verified; "
+                    f"decision={reviewed_release['governance_decision_id']}; "
+                    f"observation={reviewed_release['observation_id']}."
+                    if reviewed_release else ""
+                )
             ),
             governance_remediation,
         )

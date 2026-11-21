@@ -77,9 +77,12 @@ def assess_if_needed(application_id: UUID):
                 detail="Application not found",
             )
 
-        # Evaluate current application and control evidence.
+        # Reuse the transaction holding the application row lock.
+        # Nested review validation must not acquire that lock through
+        # another database connection.
         result = evaluate_dynamic_compliance(
-            application_id
+            application_id,
+            connection=connection,
         )
 
         latest = connection.execute(

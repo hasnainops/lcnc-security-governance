@@ -39,7 +39,7 @@ def assess_risk_if_needed(application_id: UUID):
                 "risk_status": current_status,
             }
 
-        result = assess_and_persist(application_id)
+        result = assess_and_persist(application_id, connection=connection)
 
         return {
             "action": "assessed",

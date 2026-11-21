@@ -178,8 +178,14 @@ def evaluate_publish_policy(facts):
     return result
 
 
-def check_publish(external_id):
-    with get_connection() as connection:
+def check_publish(external_id, *, record_receipt=True, connection=None):
+    from contextlib import nullcontext
+
+    # Borrow the caller's transaction when compliance already owns
+    # the application row lock. Standalone publication retains its
+    # independently managed transaction and mandatory row lock.
+    with (nullcontext(connection) if connection is not None
+          else get_connection()) as connection:
         apps = connection.execute("""SELECT * FROM applications
             WHERE external_id=%s AND LOWER(platform)='appsmith' FOR UPDATE""",
                                   (external_id,)).fetchall()
@@ -216,6 +222,7 @@ def check_publish(external_id):
             and not features.get("pending_reasons")
         )
         reviewed = False
+        review = None
         if decision and decision.get("outcome") == "SECURITY_REVIEW":
             review = connection.execute("""SELECT * FROM approval_requests
                 WHERE application_id=%s AND governance_decision_id=%s""", (app["id"], decision["id"])).fetchone()
@@ -253,6 +260,39 @@ def check_publish(external_id):
             if not ok and reason not in reasons:
                 reasons.append(reason)
         allowed = result["allow"] and not reasons
+        if not record_receipt:
+            # Compliance validation is read-only.
+            # Never count this call as publication enforcement.
+            expected_reviewer_policy = {
+                "Security/GRC Reviewer":
+                    "lcnc-security-reviewer",
+                "Senior Security/GRC Reviewer":
+                    "lcnc-senior-security-reviewer",
+            }.get((review or {}).get("required_role"))
+
+            verified_review = bool(
+                reviewed
+                and expected_reviewer_policy
+                and review.get("verified_reviewer_policy")
+                    == expected_reviewer_policy
+                and review.get("decided_at")
+                and decision.get("created_at")
+                and decision["created_at"]
+                    <= review["decided_at"]
+                    <= datetime.now(timezone.utc)
+            )
+
+            return {
+                "allowed": allowed,
+                "review_verified": verified_review,
+                "reasons": reasons,
+                "application_id": str(app["id"]),
+                "governance_decision_id":
+                    str(decision["id"]) if decision else None,
+                "observation_id":
+                    str(source["id"]) if source else None,
+            }
+
         receipt_id = uuid4()
         # This is an evaluation receipt, never a claim of successful deployment
         # or of native user authentication. Existing CTRL-06 stays not_assessed.

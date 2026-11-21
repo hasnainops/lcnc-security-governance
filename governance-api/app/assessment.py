@@ -16,8 +16,8 @@ RISK_ENGINE_URL = os.getenv(
 
 
 def assess_and_persist(application_id: UUID, *, connection=None):
-    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
-        application = connection.execute(
+    with (nullcontext(connection) if connection is not None else get_connection()) as db_connection:
+        application = db_connection.execute(
             """
             SELECT *
             FROM applications
@@ -75,8 +75,8 @@ def assess_and_persist(application_id: UUID, *, connection=None):
     assessment = response.json()
     assessment_id = uuid4()
 
-    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
-        connection.execute(
+    with (nullcontext(connection) if connection is not None else get_connection()) as db_connection:
+        db_connection.execute(
             """
             INSERT INTO risk_assessments (
                 id,
@@ -98,7 +98,7 @@ def assess_and_persist(application_id: UUID, *, connection=None):
             ),
         )
 
-        updated_application = connection.execute(
+        updated_application = db_connection.execute(
             """
             UPDATE applications
             SET
