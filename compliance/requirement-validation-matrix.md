@@ -424,3 +424,40 @@ LO4.3 acceptance assessments.
 Detailed evidence: [LO4.3 live acceptance](lo4-3-egress-acceptance.md).
 
 Production-wide enforcement is not claimed.
+
+## LO5.1 — CI/CD security testing and deployment validation
+
+**Result:** PASS for isolated technical acceptance.
+
+Verified evidence:
+`compliance/evidence/lo5-1-ci-gate-acceptance.md`
+
+- Repository security control: FAIL then PASS
+  after removal of the synthetic violation.
+- Pre-deployment image scan: FAIL for
+  CVE-2026-85091.
+- Security remediation: patched zlib1g image
+  passed the Trivy gate.
+- Deployment authorization: required-reviewer
+  environment approval was exercised.
+- Deployment: validated image ID matched the
+  running image ID.
+- Post-deployment: healthy runtime and
+  successful Trivy rescan.
+
+**Scope limitations:** The existing Baseline DAST
+entry remains PARTIAL. SonarCloud enforcement through
+required repository checks has not been independently
+verified. The isolated CI deployment does not
+establish production deployment readiness.
+The integrated assurance-branch changes have not
+been separately retested.
+
+Acceptance references:
+
+- https://github.com/hasnainops/lcnc-security-governance/pull/86
+- https://github.com/hasnainops/lcnc-security-governance/actions/runs/45021988737
+- https://github.com/hasnainops/lcnc-security-governance/actions/runs/45022288718
+- https://github.com/hasnainops/lcnc-security-governance/actions/runs/45024747226
+- https://github.com/hasnainops/lcnc-security-governance/actions/runs/45025213924
+- https://github.com/hasnainops/lcnc-security-governance/actions/runs/45025760057

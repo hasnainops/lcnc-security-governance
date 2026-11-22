@@ -58,3 +58,40 @@ LO4.3 acceptance assessments.
 Detailed evidence: [LO4.3 live acceptance](lo4-3-egress-acceptance.md).
 
 Production-wide enforcement is not claimed.
+
+## LO5.1 — Automated DevSecOps security-gate acceptance
+
+**Technical result:** PASS within the isolated CI/CD
+acceptance boundary.
+
+Primary evidence:
+[LO5.1 CI gate and approved deployment acceptance](evidence/lo5-1-ci-gate-acceptance.md)
+
+- Synthetic runtime .env rejection:
+  GitHub Actions run 45021988737.
+- Corrected CI revision passed:
+  GitHub Actions run 45022288718.
+- Vulnerable image blocked:
+  GitHub Actions run 45022980372.
+- Retained Trivy evidence identified
+  HIGH CVE-2026-85091 in zlib1g:
+  GitHub Actions run 45024747226.
+- Patched image passed pre-deployment Trivy:
+  GitHub Actions run 45025213924.
+- Reviewer-gated deployment, runtime health,
+  exact image identity and post-deployment rescan:
+  GitHub Actions run 45025760057.
+
+Validated and deployed image ID:
+
+`sha256:2170134851a82c924212978374eb7610aae9aca1d05113f906f674d04d2d50ac`
+
+The isolated workflow had zero blocking
+HIGH/CRITICAL findings after remediation.
+
+**Boundary:** This was an isolated CI-runner
+deployment, not a production rollout.
+Comprehensive DAST, required branch checks,
+mandatory SonarCloud quality-gate enforcement
+and retesting of the integrated assurance revision
+are not established by this evidence.
