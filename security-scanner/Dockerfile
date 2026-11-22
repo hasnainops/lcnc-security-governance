@@ -25,6 +25,7 @@ RUN cp /etc/apt/sources.list.d/debian.sources /tmp/debian.sources \
         openssl \
         libssl3t64 \
         openssl-provider-legacy \
+        zlib1g \
     && mv /tmp/debian.sources /etc/apt/sources.list.d/debian.sources \
     && python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.lock.txt \
     && python -m pip uninstall -y pip setuptools \
