@@ -76,8 +76,8 @@ def test_blocked_transfer_never_executes_outbound_request(
     )
 
     monkeypatch.setattr(
-        integration.httpx,
-        "request",
+        integration,
+        "_send_pinned_request",
         fake_request,
     )
 
@@ -186,8 +186,8 @@ def test_allowed_transfer_executes_exactly_one_outbound_request(
     )
 
     monkeypatch.setattr(
-        integration.httpx,
-        "request",
+        integration,
+        "_send_pinned_request",
         fake_request,
     )
 

@@ -109,8 +109,8 @@ def test_outbound_failure_records_uncertain_delivery(
         )
 
     monkeypatch.setattr(
-        integration.httpx,
-        "request",
+        integration,
+        "_send_pinned_request",
         fail_request,
     )
 

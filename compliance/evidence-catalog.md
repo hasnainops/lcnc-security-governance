@@ -39,3 +39,22 @@
 | Python regression tests | `pytest` | Application/control validation | Git + test output |
 | OPA policy tests | `policies/*_test.rego` | Governance/access policy validation | Git + test output |
 | Git commit history | Git/GitHub | Change traceability | Git |
+
+## LO4.3 — Final live acceptance (2026-11-22)
+
+**Status: PASS (MVP laboratory scope).**
+
+The final live Appsmith acceptance supersedes earlier pending
+LO4.3 acceptance assessments.
+
+- Permitted HTTPS delivery: verified, HTTP 200.
+- Restricted transfers: two blocked before outbound execution.
+- Independent receiver: exactly one permitted POST.
+- Persisted enforcement receipts: verified.
+- Tested network bypass boundary: documented.
+- Temporary authorization: revoked and cleaned.
+- Original destination allowlist: restored on both backends.
+
+Detailed evidence: [LO4.3 live acceptance](lo4-3-egress-acceptance.md).
+
+Production-wide enforcement is not claimed.

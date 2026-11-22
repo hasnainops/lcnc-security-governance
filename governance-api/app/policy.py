@@ -18,8 +18,8 @@ POLICY_VERSION = "application-v2"
 
 
 def evaluate_and_persist(application_id: UUID, *, connection=None, persist=True):
-    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
-        application = connection.execute(
+    with (nullcontext(connection) if connection is not None else get_connection()) as read_connection:
+        application = read_connection.execute(
             """
             SELECT *
             FROM applications
@@ -111,8 +111,8 @@ def evaluate_and_persist(application_id: UUID, *, connection=None, persist=True)
 
     decision_id = uuid4()
 
-    with (nullcontext(connection) if connection is not None else get_connection()) as connection:
-        decision = connection.execute(
+    with (nullcontext(connection) if connection is not None else get_connection()) as write_connection:
+        decision = write_connection.execute(
             """
             INSERT INTO policy_decisions (
                 id,

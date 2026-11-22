@@ -339,7 +339,70 @@ def evaluate_application_transfer(
 def execute_application_controlled_egress(
     application_id: UUID,
     payload: ControlledEgressRequest,
+    authorization: str | None = Header(default=None),
 ):
+    """Authorize the caller before evaluating or executing egress."""
+
+    # LO4.3: Never trust caller-supplied subject or role claims.
+    # Both values are derived from the verified Vault identity.
+    try:
+        principal = verified_access_principal(
+            authorization
+        )
+    except ReviewerAccessError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail=str(exc),
+        ) from None
+
+    export_request = AccessRequest(
+        subject_id=principal["subject_id"],
+        role=principal["role"],
+        action="export",
+    )
+
+    # Existing LO4.2 access policy, including OPA authorization.
+    access_decision = authorize_and_persist(
+        application_id,
+        export_request,
+        authorization=authorization,
+    )
+
+    if (
+        not isinstance(access_decision, dict)
+        or access_decision.get("allowed") is not True
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Export access authorization denied.",
+        )
+
+    # LO4.3 requires a JIT export grant even when the ordinary
+    # access policy permits export based on the caller's role.
+    #
+    # The existing JIT service verifies the bearer identity
+    # and scopes the grant to application, subject and action.
+    jit = check_jit_privilege(
+        application_id,
+        export_request,
+        authorization=authorization,
+    )
+
+    if (
+        not isinstance(jit, dict)
+        or jit.get("active") is not True
+        or jit.get("granted_action") != "export"
+        or not jit.get("grant_id")
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "An active application-scoped JIT export "
+                "grant is required for controlled egress."
+            ),
+        )
+
+    # Preserve the existing application-governance OPA gate.
     policy = evaluate_policy_and_persist(application_id)
 
     if policy.get("allowed") is not True:
@@ -348,6 +411,8 @@ def execute_application_controlled_egress(
             detail="OPA governance policy blocked controlled egress",
         )
 
+    # Only authorized callers can reach the existing DLP,
+    # destination validation and actual outbound execution.
     return execute_controlled_egress(
         application_id,
         payload,
@@ -357,6 +422,7 @@ def execute_application_controlled_egress(
 from .access import (
     AccessRequest,
     authorize_and_persist,
+    check_jit_privilege,
 )
 from .access_identity import (
     ReviewerAccessError,

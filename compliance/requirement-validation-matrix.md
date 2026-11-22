@@ -405,3 +405,22 @@ Enterprise identity, broader control-plane and stateful-service high availabilit
 The project should be presented as:
 
 > A working security-governance MVP demonstrating how AI-assisted discovery and analysis can be combined with deterministic policy, DLP, risk management, compliance evidence, and citizen-developer enablement without allowing AI to become the final security authority.
+
+## LO4.3 — Final live acceptance (2026-11-22)
+
+**Status: PASS (MVP laboratory scope).**
+
+The final live Appsmith acceptance supersedes earlier pending
+LO4.3 acceptance assessments.
+
+- Permitted HTTPS delivery: verified, HTTP 200.
+- Restricted transfers: two blocked before outbound execution.
+- Independent receiver: exactly one permitted POST.
+- Persisted enforcement receipts: verified.
+- Tested network bypass boundary: documented.
+- Temporary authorization: revoked and cleaned.
+- Original destination allowlist: restored on both backends.
+
+Detailed evidence: [LO4.3 live acceptance](lo4-3-egress-acceptance.md).
+
+Production-wide enforcement is not claimed.

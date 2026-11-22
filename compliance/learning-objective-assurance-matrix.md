@@ -196,3 +196,22 @@ The browser screenshot cannot be paired to the API receipt, Appsmith omitted
 the deployment timestamp from the tested inventory response, and other
 configuration and publish paths have not been accepted. LO2.2 and LO2.3
 retain the preceding verdicts and limitations.
+
+## LO4.3 — Final live acceptance (2026-11-22)
+
+**Status: PASS (MVP laboratory scope).**
+
+The final live Appsmith acceptance supersedes earlier pending
+LO4.3 acceptance assessments.
+
+- Permitted HTTPS delivery: verified, HTTP 200.
+- Restricted transfers: two blocked before outbound execution.
+- Independent receiver: exactly one permitted POST.
+- Persisted enforcement receipts: verified.
+- Tested network bypass boundary: documented.
+- Temporary authorization: revoked and cleaned.
+- Original destination allowlist: restored on both backends.
+
+Detailed evidence: [LO4.3 live acceptance](lo4-3-egress-acceptance.md).
+
+Production-wide enforcement is not claimed.

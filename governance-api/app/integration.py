@@ -1,11 +1,14 @@
+import http.client
 import os
 import socket
+import ssl
 from ipaddress import ip_address
 from typing import Literal
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import httpx
+from types import SimpleNamespace
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from psycopg.types.json import Jsonb
@@ -52,7 +55,7 @@ def _approved_external_hosts():
     }
 
 
-def _classify_destination(destination_url):
+def _classify_destination(destination_url, *, include_addresses=False):
     """Validate a target and derive destination trust server-side."""
 
     parsed = urlparse(destination_url)
@@ -147,6 +150,21 @@ def _classify_destination(destination_url):
         if hostname in _approved_external_hosts()
         else "unapproved_external"
     )
+
+    if include_addresses:
+        return (
+            parsed,
+            destination_trust,
+            tuple(
+                sorted(
+                    addresses,
+                    key=lambda address: (
+                        address.version,
+                        int(address),
+                    ),
+                )
+            ),
+        )
 
     return parsed, destination_trust
 
@@ -368,11 +386,183 @@ def record_controlled_egress_enforcement(
         )
 
 
+
+class _PinnedSocketDialer:
+    """Connect directly to a validated numeric IP, not DNS."""
+
+    def _install_pin(self, pinned_ip):
+        self._pinned_ip = ip_address(str(pinned_ip))
+
+        if not self._pinned_ip.is_global:
+            raise ValueError(
+                "Pinned destination must be globally routable"
+            )
+
+        self._create_connection = self._dial_pinned
+
+    def _dial_pinned(
+        self,
+        address,
+        timeout,
+        source_address=None,
+    ):
+        if (
+            address != (self.host, self.port)
+            or source_address is not None
+        ):
+            raise ValueError(
+                "Unexpected outbound connection target"
+            )
+
+        ip = self._pinned_ip
+
+        family = (
+            socket.AF_INET6
+            if ip.version == 6
+            else socket.AF_INET
+        )
+
+        sock = socket.socket(
+            family,
+            socket.SOCK_STREAM,
+        )
+
+        try:
+            sock.settimeout(timeout)
+
+            destination = (
+                (str(ip), self.port, 0, 0)
+                if ip.version == 6
+                else (str(ip), self.port)
+            )
+
+            # Numeric IP: no second hostname DNS lookup.
+            sock.connect(destination)
+
+            return sock
+
+        except BaseException:
+            sock.close()
+            raise
+
+
+class _PinnedHTTPConnection(
+    http.client.HTTPConnection,
+    _PinnedSocketDialer,
+):
+    def __init__(
+        self,
+        hostname,
+        port,
+        *,
+        pinned_ip,
+        timeout,
+    ):
+        super().__init__(
+            hostname,
+            port=port,
+            timeout=timeout,
+        )
+
+        self._install_pin(pinned_ip)
+
+
+class _PinnedHTTPSConnection(
+    http.client.HTTPSConnection,
+    _PinnedSocketDialer,
+):
+    def __init__(
+        self,
+        hostname,
+        port,
+        *,
+        pinned_ip,
+        timeout,
+        context=None,
+    ):
+        if context is None:
+            context = ssl.create_default_context()
+
+        super().__init__(
+            hostname,
+            port=port,
+            timeout=timeout,
+            context=context,
+        )
+
+        self._install_pin(pinned_ip)
+
+
+def _send_pinned_request(
+    *,
+    method,
+    url,
+    content,
+    timeout,
+    follow_redirects=False,
+):
+    """Send once to a freshly validated, pinned destination."""
+
+    if follow_redirects:
+        raise ValueError(
+            "Controlled egress must not follow redirects"
+        )
+
+    parsed, _trust, addresses = _classify_destination(
+        url,
+        include_addresses=True,
+    )
+
+    hostname = parsed.hostname.lower().rstrip(".")
+
+    port = parsed.port
+
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+
+    pinned_ip = addresses[0]
+
+    connection_type = (
+        _PinnedHTTPSConnection
+        if parsed.scheme == "https"
+        else _PinnedHTTPConnection
+    )
+
+    connection = connection_type(
+        hostname,
+        port,
+        pinned_ip=pinned_ip,
+        timeout=timeout,
+    )
+
+    # HTTPX parses and percent-encodes the request target,
+    # but performs no network operation here.
+    target = httpx.URL(url).raw_path.decode("ascii")
+
+    try:
+        connection.request(
+            method,
+            target,
+            body=content.encode("utf-8"),
+        )
+
+        response = connection.getresponse()
+
+        # Redirects are returned as status codes only.
+        # No Location header is followed.
+        return SimpleNamespace(
+            status_code=response.status,
+        )
+
+    finally:
+        connection.close()
+
+
 def execute_controlled_egress(
     application_id: UUID,
     payload: ControlledEgressRequest,
 ):
-    """Evaluate first; execute outbound traffic only on ALLOW."""
+    """Evaluate DLP, then send only to a validated IP."""
 
     evaluation_payload = TransferEvaluationRequest(
         destination_url=payload.destination_url,
@@ -390,6 +580,7 @@ def execute_controlled_egress(
             evaluation["event_id"],
             "blocked_before_send",
         )
+
         return {
             **evaluation,
             "executed": False,
@@ -397,7 +588,7 @@ def execute_controlled_egress(
         }
 
     try:
-        response = httpx.request(
+        response = _send_pinned_request(
             method=payload.method,
             url=payload.destination_url,
             content=payload.content,
@@ -405,7 +596,17 @@ def execute_controlled_egress(
             follow_redirects=False,
         )
 
+    except HTTPException:
+        # A destination failing the final public-IP check
+        # must not be contacted.
+        record_controlled_egress_enforcement(
+            evaluation["event_id"],
+            "blocked_before_send",
+        )
+        raise
+
     except (
+        OSError,
         httpx.ConnectError,
         httpx.TimeoutException,
     ) as exc:
@@ -413,6 +614,7 @@ def execute_controlled_egress(
             evaluation["event_id"],
             "delivery_unconfirmed",
         )
+
         raise HTTPException(
             status_code=502,
             detail={
@@ -424,11 +626,12 @@ def execute_controlled_egress(
             },
         ) from exc
 
-    except httpx.HTTPError as exc:
+    except Exception as exc:
         record_controlled_egress_enforcement(
             evaluation["event_id"],
             "delivery_unconfirmed",
         )
+
         raise HTTPException(
             status_code=502,
             detail={

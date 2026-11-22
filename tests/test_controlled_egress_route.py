@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -18,6 +19,60 @@ from app import main as governance_main
 APPLICATION_ID = (
     "11111111-2222-3333-4444-555555555555"
 )
+
+
+@pytest.fixture(autouse=True)
+def authenticated_export_fixture(monkeypatch):
+    """Existing route tests assume a valid authorized caller."""
+
+    def verify(authorization):
+        if authorization != "Bearer route-fixture":
+            raise governance_main.ReviewerAccessError(
+                401,
+                "Access bearer credential required.",
+            )
+
+        return {
+            "subject_id": (
+                "vault:11111111-2222-3333-4444-555555555555"
+            ),
+            "role": "developer",
+        }
+
+    def permit_export(application_id, request, authorization=None):
+        assert request.action == "export"
+        assert authorization == "Bearer route-fixture"
+        return {"allowed": True, "decision": "allow"}
+
+    def active_grant(application_id, request, authorization=None):
+        assert request.action == "export"
+        assert authorization == "Bearer route-fixture"
+
+        return {
+            "active": True,
+            "grant_id": (
+                "aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"
+            ),
+            "granted_action": "export",
+        }
+
+    monkeypatch.setattr(
+        governance_main,
+        "verified_access_principal",
+        verify,
+    )
+
+    monkeypatch.setattr(
+        governance_main,
+        "authorize_and_persist",
+        permit_export,
+    )
+
+    monkeypatch.setattr(
+        governance_main,
+        "check_jit_privilege",
+        active_grant,
+    )
 
 
 def test_controlled_egress_route_returns_block_without_execution(
@@ -67,6 +122,7 @@ def test_controlled_egress_route_returns_block_without_execution(
             f"/applications/{APPLICATION_ID}"
             "/controlled-egress"
         ),
+        headers={"Authorization": "Bearer route-fixture"},
         json={
             "destination_url": destination,
             "content": "restricted test payload",
@@ -101,6 +157,7 @@ def test_governance_policy_deny_prevents_egress(monkeypatch):
 
     response = TestClient(governance_main.app).post(
         f"/applications/{APPLICATION_ID}/controlled-egress",
+        headers={"Authorization": "Bearer route-fixture"},
         json={
             "destination_url": "https://example.invalid/receive",
             "content": "synthetic",
@@ -135,6 +192,7 @@ def test_governance_policy_failure_prevents_egress(monkeypatch):
 
     response = TestClient(governance_main.app).post(
         f"/applications/{APPLICATION_ID}/controlled-egress",
+        headers={"Authorization": "Bearer route-fixture"},
         json={
             "destination_url": "https://example.invalid/receive",
             "content": "synthetic",
