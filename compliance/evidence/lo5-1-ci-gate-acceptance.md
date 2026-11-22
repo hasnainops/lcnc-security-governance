@@ -232,9 +232,33 @@ were subsequently imported into the assurance branch;
 the integrated assurance revision has not yet been
 independently retested.
 
-Temporary PR #86 must be closed without merging,
-after the verified fixes and documentation are
-committed to the assurance branch.
+Temporary PR #86 was closed without merging.
+The experimental acceptance history remains
+separate from the assurance branch.
+
+## Git integration and acceptance PR closure
+
+Assurance branch:
+`audit/learning-objective-assurance`
+
+Verified integration commit:
+`491b55983370cada27f9884cdeb235e87e7754f4`
+
+Temporary acceptance PR:
+https://github.com/hasnainops/lcnc-security-governance/pull/86
+
+PR status: CLOSED — NOT MERGED
+Closure date: 2026-11-22
+
+The validated Dockerfile security fix, Trivy diagnostic
+retention improvement, and supporting governance evidence
+were committed and pushed to the assurance branch.
+
+The experimental PR history was not merged into main.
+
+The integration commit itself was not independently
+subjected to the complete acceptance test suite.
+This limitation remains documented.
 
 ## Overall assessment
 
@@ -252,7 +276,8 @@ The evidence demonstrates:
 - Runtime health verified
 - Post-deployment scan passed
 
-Documentation reconciliation, Git integration,
-and temporary PR cleanup remain pending.
+Documentation reconciliation, assurance-branch
+Git integration, and temporary PR closure are complete.
 
-Overall LO5.1 project closure: IN PROGRESS.
+Overall LO5.1 project closure: COMPLETE within the
+documented isolated CI/CD acceptance boundary.
