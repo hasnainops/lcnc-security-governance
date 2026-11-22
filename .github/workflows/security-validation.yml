@@ -6,6 +6,9 @@ on:
       - main
       - feature/mvp-v3-enterprise-automation
   pull_request:
+  schedule:
+    - cron: "23 5 * * 2"
+  workflow_dispatch:
 
 permissions:
   contents: read
