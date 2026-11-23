@@ -36,6 +36,7 @@
 | Trivy scanning | GitHub Actions | Vulnerability, secret and misconfiguration validation | CI history |
 | Dependabot configuration | `.github/dependabot.yml` | Dependency/container update lifecycle | Git |
 | Objective 15 vulnerability remediation | `compliance/evidence/objective15-vulnerability-remediation.md` | Detect, patch, validate, approve, redeploy and re-scan evidence | Git + runtime proof |
+| LO5.3 vulnerability-management acceptance | `compliance/evidence/lo5-3-vulnerability-management-acceptance.md` | Vulnerability lifecycle, Dependabot, CI security gates, weekly scheduled scanning and documented limitations | Git + GitHub Actions history |
 | Python regression tests | `pytest` | Application/control validation | Git + test output |
 | OPA policy tests | `policies/*_test.rego` | Governance/access policy validation | Git + test output |
 | Git commit history | Git/GitHub | Change traceability | Git |
@@ -137,3 +138,24 @@ platform-level rotation was not demonstrated.
 Production Vault TLS, persistent storage,
 high availability and operational recovery
 remain outside the demonstrated local MVP.
+
+## LO5.3 — Vulnerability Management and Security Patching Automation
+
+**Acceptance:** PASS within the documented MVP remediation and
+automation-configuration scope.
+
+Primary acceptance record:
+[LO5.3 vulnerability-management acceptance](evidence/lo5-3-vulnerability-management-acceptance.md)
+
+Supporting evidence includes Objective 15's 39 HIGH to 0 remediation,
+LO5.1's CI/CD vulnerability-gate exercise, weekly Dependabot
+configuration, and PR #87's six successful checks.
+
+PR #87 merged the scheduled Security Validation trigger into `main`.
+GitHub verified workflow ID `331145159` as active.
+
+The scheduled trigger is Tuesday at 05:23 UTC.
+
+The first actual scheduled execution remains pending verification.
+Fully automated patch deployment and mandatory branch protection
+are not claimed.
